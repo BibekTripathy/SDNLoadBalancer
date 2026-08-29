@@ -7,9 +7,11 @@ of server failures and recovery for demonstrations.
 
 import logging
 import time
+import requests
 from typing import Callable, Dict, List, Optional
+from ryu.lib import hub
 
-from controller.config import BackendServer
+from controller.config import CONFIG, BackendServer
 from controller.events import ControllerEvent, EventType, ServerHealthState
 
 logger = logging.getLogger(__name__)
@@ -29,6 +31,26 @@ class HealthMonitor:
         }
         self.event_callback = event_callback
         self.last_check_time: float = time.time()
+        
+        # Start active background health checking thread
+        self.monitor_thread = hub.spawn(self._active_health_check_loop)
+
+    def _active_health_check_loop(self):
+        """Continuously polls backend servers to verify they are alive."""
+        while True:
+            for server_id, server in self.servers.items():
+                try:
+                    url = f"http://{server.ip}:{server.port}/"
+                    # Short timeout so it doesn't block the greenthread forever
+                    response = requests.get(url, timeout=1.5)
+                    if response.status_code == 200:
+                        self.set_server_state(server_id, ServerHealthState.HEALTHY, reason="HTTP 200 OK")
+                    else:
+                        self.set_server_state(server_id, ServerHealthState.DOWN, reason=f"HTTP {response.status_code}")
+                except Exception as e:
+                    self.set_server_state(server_id, ServerHealthState.DOWN, reason=f"Connection failed: {str(e)[:40]}")
+            
+            hub.sleep(CONFIG.HEALTH_CHECK_INTERVAL)
 
     def get_healthy_servers(self) -> List[BackendServer]:
         """Returns the list of servers currently in HEALTHY state."""

@@ -5,6 +5,8 @@ Integrates active load balancing algorithms, telemetry inputs, and server health
 """
 
 import logging
+import time
+from ryu.lib import hub
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from controller.algorithms import BaseLoadBalancerAlgorithm, get_algorithm
@@ -33,8 +35,24 @@ class LoadBalancerEngine:
         self.total_requests: int = 0
         
         # Connection tracking table to prevent SDN FlowMod race conditions.
-        # Maps (client_ip, client_port) -> BackendServer
-        self.active_connections: Dict[Tuple[str, int], BackendServer] = {}
+        # Maps (client_ip, client_port) -> (BackendServer, timestamp)
+        self.active_connections: Dict[Tuple[str, int], Tuple[BackendServer, float]] = {}
+        
+        # Start background cleanup task
+        self.cleanup_thread = hub.spawn(self._cleanup_stale_connections)
+
+    def _cleanup_stale_connections(self):
+        """Periodically removes stale connection tracking entries."""
+        while True:
+            now = time.time()
+            stale_keys = [
+                k for k, (server, ts) in self.active_connections.items()
+                if now - ts > 60.0  # 60 second connection tracker timeout
+            ]
+            for k in stale_keys:
+                del self.active_connections[k]
+                
+            hub.sleep(30.0)
 
     def set_algorithm(self, algorithm_name: str) -> None:
         """Dynamically switches active load balancing algorithm at runtime."""
@@ -66,7 +84,10 @@ class LoadBalancerEngine:
         if client_ip and client_port:
             conn_key = (client_ip, client_port)
             if conn_key in self.active_connections:
-                return self.active_connections[conn_key], {"reason": "Existing connection"}
+                saved_server, _ = self.active_connections[conn_key]
+                # Refresh timestamp
+                self.active_connections[conn_key] = (saved_server, time.time())
+                return saved_server, "Existing connection"
 
         healthy_servers = self.health_monitor.get_healthy_servers()
         if not healthy_servers:
@@ -83,7 +104,7 @@ class LoadBalancerEngine:
 
         # 2. Save the assignment in our connection tracker
         if client_ip and client_port:
-            self.active_connections[(client_ip, client_port)] = selected_server
+            self.active_connections[(client_ip, client_port)] = (selected_server, time.time())
 
         if self.event_callback:
             event = ControllerEvent(

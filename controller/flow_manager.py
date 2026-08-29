@@ -128,18 +128,20 @@ class FlowManager:
             match=fwd_match,
             actions=fwd_actions,
             priority=CONFIG.PRIORITY_HIGH,
-            idle_timeout=idle_timeout,
-            hard_timeout=hard_timeout,
+            idle_timeout=0,
+            hard_timeout=0,
         )
 
         # 2. Reverse Path (Backend -> Client)
+        # Fix: Remove tcp_dst/udp_dst matching so the reverse rule applies to ALL 
+        # traffic from the server back to the client. We also set idle_timeout=0 
+        # so this rule is permanent and prevents race conditions with L2 learning flows.
         if protocol == inet.IPPROTO_TCP:
             rev_match = self.parser.OFPMatch(
                 eth_type=ether.ETH_TYPE_IP,
                 ip_proto=inet.IPPROTO_TCP,
                 ipv4_src=server.ip,
                 ipv4_dst=client_ip,
-                tcp_dst=client_port,
             )
         elif protocol == inet.IPPROTO_UDP:
             rev_match = self.parser.OFPMatch(
@@ -147,7 +149,6 @@ class FlowManager:
                 ip_proto=inet.IPPROTO_UDP,
                 ipv4_src=server.ip,
                 ipv4_dst=client_ip,
-                udp_dst=client_port,
             )
         else:
             rev_match = self.parser.OFPMatch(
@@ -166,8 +167,8 @@ class FlowManager:
             match=rev_match,
             actions=rev_actions,
             priority=CONFIG.PRIORITY_HIGH,
-            idle_timeout=idle_timeout,
-            hard_timeout=hard_timeout,
+            idle_timeout=0,  # Permanent to avoid race conditions with L2 learning
+            hard_timeout=0,  # Permanent to avoid race conditions with L2 learning
         )
 
         logger.info(
