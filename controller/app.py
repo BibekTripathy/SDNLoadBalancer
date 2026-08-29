@@ -32,6 +32,7 @@ class SDNLoadBalancerApp(app_manager.RyuApp):
         self.name = "sdn_load_balancer"
         self.datapaths: Dict[int, Any] = {}
         self.flow_managers: Dict[int, FlowManager] = {}
+        self.mac_to_port = {}  # Added for L2 learning (Phase 1 pingall support)
 
         # Initialize Subsystems
         self.telemetry = TelemetryCollector(CONFIG.SERVERS)
@@ -95,44 +96,57 @@ class SDNLoadBalancerApp(app_manager.RyuApp):
         if eth.ethertype == ether_types.ETH_TYPE_LLDP:
             return
 
+        dpid = datapath.id
+        self.mac_to_port.setdefault(dpid, {})
+        
+        # Learn the MAC address to avoid FLOOD next time
+        self.mac_to_port[dpid][eth.src] = in_port
+
         # Handle ARP Requests
         if eth.ethertype == ether_types.ETH_TYPE_ARP:
-            self._handle_arp(datapath, in_port, pkt, eth)
-            return
-
-        # Handle IPv4 Packets
-        if eth.ethertype == ether_types.ETH_TYPE_IP:
-            self._handle_ipv4(datapath, in_port, pkt, eth, msg)
-            return
-
-    def _handle_arp(self, datapath, in_port, pkt, eth):
-        """Resolves ARP requests for Virtual IP and host machines."""
-        arp_pkt = pkt.get_protocol(arp.arp)
-        if not arp_pkt or arp_pkt.opcode != arp.ARP_REQUEST:
-            return
-
-        target_ip = arp_pkt.dst_ip
-        src_ip = arp_pkt.src_ip
-        src_mac = eth.src
-
-        # Respond to ARP for Virtual IP
-        if target_ip == CONFIG.VIRTUAL_IP:
-            reply_mac = CONFIG.VIRTUAL_MAC
-            self._send_arp_reply(datapath, in_port, target_ip, reply_mac, src_ip, src_mac)
-            return
-
-        # Respond to ARP for known Backend Servers
-        for s in CONFIG.SERVERS:
-            if target_ip == s.ip:
-                self._send_arp_reply(datapath, in_port, target_ip, s.mac, src_ip, src_mac)
+            arp_pkt = pkt.get_protocol(arp.arp)
+            if arp_pkt and arp_pkt.opcode == arp.ARP_REQUEST and arp_pkt.dst_ip == CONFIG.VIRTUAL_IP:
+                self._send_arp_reply(datapath, in_port, CONFIG.VIRTUAL_IP, CONFIG.VIRTUAL_MAC, arp_pkt.src_ip, eth.src)
                 return
 
-        # Respond to ARP for Client
-        if target_ip == CONFIG.CLIENT_IP:
-            self._send_arp_reply(
-                datapath, in_port, target_ip, CONFIG.CLIENT_MAC, src_ip, src_mac
-            )
-            return
+        # Handle IPv4 Packets destined to VIP
+        if eth.ethertype == ether_types.ETH_TYPE_IP:
+            ip_pkt = pkt.get_protocol(ipv4.ipv4)
+            if ip_pkt and ip_pkt.dst == CONFIG.VIRTUAL_IP:
+                self._handle_ipv4(datapath, in_port, pkt, eth, msg)
+                return
+
+        # Standard L2 Forwarding (for non-VIP traffic, enabling `pingall`)
+        dst = eth.dst
+        if dst in self.mac_to_port[dpid]:
+            out_port = self.mac_to_port[dpid][dst]
+        else:
+            out_port = ofproto.OFPP_FLOOD
+
+        actions = [parser.OFPActionOutput(out_port)]
+
+        # Install a flow to avoid packet-in next time
+        if out_port != ofproto.OFPP_FLOOD:
+            match = parser.OFPMatch(in_port=in_port, eth_dst=dst, eth_src=eth.src)
+            # Use low priority so LB flows (HIGH priority) can override L2 learning rules
+            if msg.buffer_id != ofproto.OFP_NO_BUFFER:
+                self.flow_managers[dpid].add_flow(
+                    match, actions, CONFIG.PRIORITY_LOW, idle_timeout=60, hard_timeout=0, buffer_id=msg.buffer_id
+                )
+                return
+            else:
+                self.flow_managers[dpid].add_flow(
+                    match, actions, CONFIG.PRIORITY_LOW, idle_timeout=60, hard_timeout=0
+                )
+
+        data = None
+        if msg.buffer_id == ofproto.OFP_NO_BUFFER:
+            data = msg.data
+
+        out = parser.OFPPacketOut(
+            datapath=datapath, buffer_id=msg.buffer_id, in_port=in_port, actions=actions, data=data
+        )
+        datapath.send_msg(out)
 
     def _send_arp_reply(self, datapath, in_port, sender_ip, sender_mac, target_ip, target_mac):
         """Constructs and sends an ARP reply packet."""
