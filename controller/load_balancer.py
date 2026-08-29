@@ -31,6 +31,10 @@ class LoadBalancerEngine:
         self.active_algorithm: BaseLoadBalancerAlgorithm = get_algorithm(default_algorithm)
         self.event_callback = event_callback
         self.total_requests: int = 0
+        
+        # Connection tracking table to prevent SDN FlowMod race conditions.
+        # Maps (client_ip, client_port) -> BackendServer
+        self.active_connections: Dict[Tuple[str, int], BackendServer] = {}
 
     def set_algorithm(self, algorithm_name: str) -> None:
         """Dynamically switches active load balancing algorithm at runtime."""
@@ -56,6 +60,14 @@ class LoadBalancerEngine:
         """
         Evaluates active algorithm on healthy servers and returns chosen backend + reasoning.
         """
+        # 1. Check if this is an existing connection to avoid breaking TCP handshakes
+        client_ip = client_info.get("client_ip")
+        client_port = client_info.get("client_port")
+        if client_ip and client_port:
+            conn_key = (client_ip, client_port)
+            if conn_key in self.active_connections:
+                return self.active_connections[conn_key], {"reason": "Existing connection"}
+
         healthy_servers = self.health_monitor.get_healthy_servers()
         if not healthy_servers:
             raise RuntimeError("No healthy backend servers are currently available")
@@ -68,6 +80,10 @@ class LoadBalancerEngine:
             client_info=client_info,
             telemetry_data=telemetry_snapshot,
         )
+
+        # 2. Save the assignment in our connection tracker
+        if client_ip and client_port:
+            self.active_connections[(client_ip, client_port)] = selected_server
 
         if self.event_callback:
             event = ControllerEvent(
