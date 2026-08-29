@@ -89,7 +89,7 @@ def run_topology(controller_ip: str = "127.0.0.1", controller_port: int = 6653):
     for s_name in ["server1", "server2", "server3"]:
         server_node = net.get(s_name)
         server_node.cmd(
-            f"python3 topology/server_app.py --name {s_name} --port 80 > /tmp/{s_name}.log 2>&1 &"
+            f"$(pwd)/.venv/bin/python topology/server_app.py --name {s_name} --port 80 > /tmp/{s_name}.log 2>&1 &"
         )
         info(f"*** Started HTTP server on {s_name} (10.0.0.{s_name[-1]}:80)\n")
 
