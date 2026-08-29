@@ -11,6 +11,8 @@ Fixes:
 import os
 import sys
 import warnings
+import eventlet
+eventlet.monkey_patch()
 
 # Suppress Eventlet deprecation warnings in terminal logs
 warnings.filterwarnings("ignore")
