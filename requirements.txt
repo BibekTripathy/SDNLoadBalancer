@@ -1,0 +1,19 @@
+# Core Controller & Framework Dependencies
+ryu>=4.34
+eventlet>=0.30.2
+dnspython>=2.0.0
+greenlet>=3.0.0
+msgpack>=1.0.0
+netaddr>=1.0.0
+oslo.config>=10.0.0
+ovs>=4.0.0
+routes>=2.5.1
+webob>=1.8.0
+
+# API & Gateway Dependencies
+fastapi>=0.110.0
+uvicorn[standard]>=0.28.0
+websockets>=12.0
+pydantic>=2.6.0
+requests>=2.31.0
+python-dotenv>=1.0.0
