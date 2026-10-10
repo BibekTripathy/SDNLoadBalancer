@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  backend:
+    build: .
+    image: ghcr.io/bibektripathy/sdnloadbalancer:dev
+    container_name: sdn_backend
+    privileged: true
+    # Mininet CLI requires a TTY to keep the container running
+    tty: true
+    stdin_open: true
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+    volumes:
+      - /lib/modules:/lib/modules:ro
+
+  # Watchtower automatically updates containers when a new image is pushed to the registry
+  # To use this, you must push your built image to Docker Hub or GHCR (GitHub Container Registry)
+  watchtower:
+    image: containrrr/watchtower
+    container_name: watchtower
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: --interval 300 sdn_backend
+    restart: unless-stopped

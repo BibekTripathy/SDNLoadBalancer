@@ -222,3 +222,5 @@ front-end/node_modules/
 front-end/dist/
 front-end/dist-ssr/
 front-end/.local/
+.vercel
+.env*
