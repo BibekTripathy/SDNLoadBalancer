@@ -48,6 +48,7 @@ async def root():
     return {
         "name": "SDN Dynamic Load Balancer Gateway",
         "status": "online",
+        "version": "2.0.0 (Vercel Test)",
         "docs": "/docs",
         "websocket": "/ws/events",
     }
