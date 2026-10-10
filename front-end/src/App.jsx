@@ -130,7 +130,7 @@ export default function App() {
 
       {/* Footer */}
       <footer className="border-t border-slate-900 bg-slate-950/80 py-4 px-6 text-center text-xs text-slate-500 font-mono">
-        🚀 SDN Load Balancer Dashboard v2.0 • Ryu OpenFlow 1.3 Controller • Mininet Network Topology Simulation
+        🚀 SDN Load Balancer Dashboard v0.1• Ryu OpenFlow 1.3 Controller • Mininet Network Topology Simulation
       </footer>
 
       {/* Flow Table Modal */}
