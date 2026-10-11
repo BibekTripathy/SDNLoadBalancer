@@ -17,9 +17,11 @@ class AlgorithmInfo(BaseModel):
 
 
 class ServerStatus(BaseModel):
+    id: str
     server_id: str
     ip: str
     port: int
+    switch_port: int = 1
     status: str
     weight: int = 1
 

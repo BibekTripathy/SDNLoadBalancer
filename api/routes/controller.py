@@ -61,10 +61,12 @@ async def get_servers():
     """Returns list of backend servers and their current configurations."""
     return [
         ServerStatus(
+            id=s.id,
             server_id=s.id,
             ip=s.ip,
             port=s.port,
-            status="HEALTHY",
+            switch_port=s.switch_port,
+            status=controller_client._local_server_health.get(s.id, "HEALTHY"),
             weight=s.weight,
         )
         for s in CONFIG.SERVERS

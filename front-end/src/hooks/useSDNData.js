@@ -111,7 +111,9 @@ export function useSDNData() {
         if (!isCancelled && algos && algos.length > 0) setAlgorithms(algos);
 
         const srvs = await fetchServers();
-        if (!isCancelled && srvs && srvs.length > 0) setServers(srvs);
+        if (!isCancelled && srvs && srvs.length > 0) {
+          setServers(srvs.map((s) => ({ ...s, id: s.id || s.server_id })));
+        }
       } catch (err) {
         if (!isCancelled) {
           setIsLiveConnected(false);

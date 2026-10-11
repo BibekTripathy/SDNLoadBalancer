@@ -115,7 +115,8 @@ export default function TopologyCanvas({
 
       // Data links (Switch <-> Servers)
       servers.forEach((srv) => {
-        const node = nodes[srv.id];
+        const srvId = srv.id || srv.server_id;
+        const node = nodes[srvId];
         if (node) {
           const isHealthy = srv.status === 'HEALTHY';
           drawLink(nodes.switch, node, isHealthy, false);
@@ -230,16 +231,17 @@ export default function TopologyCanvas({
 
           {/* BACKEND SERVER NODES */}
           {servers.map((srv) => {
-            const node = nodes[srv.id];
+            const srvId = srv.id || srv.server_id;
+            const node = nodes[srvId];
             if (!node) return null;
-            const metrics = currentMetrics[srv.id] || {};
+            const metrics = currentMetrics[srvId] || {};
             const isHealthy = srv.status === 'HEALTHY';
             const isDown = srv.status === 'DOWN';
-            const isChosen = lastSelectedServer === srv.id && isHealthy;
+            const isChosen = lastSelectedServer === srvId && isHealthy;
 
             return (
               <div
-                key={srv.id}
+                key={srvId}
                 onClick={() => onSelectServer(srv)}
                 style={{ left: `${node.x - 70}px`, top: `${node.y - 45}px` }}
                 className={`absolute w-36 p-3 bg-slate-900/95 rounded-xl border text-center shadow-xl cursor-pointer transition transform hover:scale-105 ${
@@ -266,7 +268,7 @@ export default function TopologyCanvas({
                   }`}
                 />
 
-                <div className="text-xs font-bold text-slate-200">{srv.id}</div>
+                <div className="text-xs font-bold text-slate-200">{srvId}</div>
                 <div className="text-[10px] font-mono text-slate-400">{srv.ip}</div>
 
                 {/* Metrics preview pill */}
