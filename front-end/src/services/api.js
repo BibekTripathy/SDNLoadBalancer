@@ -83,3 +83,56 @@ export const connectWebSocket = (onMessage, onError, onClose) => {
     return null;
   }
 };
+
+// Benchmark Laboratory API
+export const startBenchmark = async (config) => {
+  const response = await fetch(`${API_BASE_URL}/api/benchmarks`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(config),
+  });
+  if (!response.ok) {
+    const err = await response.json();
+    throw new Error(err.detail || 'Failed to start benchmark');
+  }
+  return response.json();
+};
+
+export const fetchBenchmarks = async () => {
+  const response = await fetch(`${API_BASE_URL}/api/benchmarks`);
+  if (!response.ok) throw new Error('Failed to fetch benchmarks list');
+  return response.json();
+};
+
+export const fetchActiveBenchmark = async () => {
+  const response = await fetch(`${API_BASE_URL}/api/benchmarks/active`);
+  if (response.status === 404) return null;
+  if (!response.ok) throw new Error('Failed to fetch active benchmark');
+  return response.json();
+};
+
+export const fetchBenchmarkDetails = async (id) => {
+  const response = await fetch(`${API_BASE_URL}/api/benchmarks/${id}`);
+  if (!response.ok) throw new Error('Failed to fetch benchmark details');
+  return response.json();
+};
+
+export const cancelBenchmark = async (id) => {
+  const response = await fetch(`${API_BASE_URL}/api/benchmarks/${id}/cancel`, {
+    method: 'POST',
+  });
+  if (!response.ok) throw new Error('Failed to cancel benchmark');
+  return response.json();
+};
+
+export const deleteBenchmark = async (id) => {
+  const response = await fetch(`${API_BASE_URL}/api/benchmarks/${id}`, {
+    method: 'DELETE',
+  });
+  if (!response.ok) throw new Error('Failed to delete benchmark');
+  return response.json();
+};
+
+export const getBenchmarkCsvUrl = (id) => `${API_BASE_URL}/api/benchmarks/${id}/export.csv`;
+export const getBenchmarkJsonUrl = (id) => `${API_BASE_URL}/api/benchmarks/${id}/export.json`;
+

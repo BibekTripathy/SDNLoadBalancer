@@ -2,6 +2,8 @@
 __pycache__/
 *.py[codz]
 *$py.class
+*.db
+benchmarks.db
 
 # C extensions
 *.so

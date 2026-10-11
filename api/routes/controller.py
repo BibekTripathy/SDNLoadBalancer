@@ -13,6 +13,7 @@ from api.models import (
 )
 from controller.algorithms import list_available_algorithms
 from controller.config import CONFIG
+from api.controller_client import controller_client
 
 router = APIRouter(prefix="/api/controller", tags=["controller"])
 
@@ -20,14 +21,15 @@ router = APIRouter(prefix="/api/controller", tags=["controller"])
 @router.get("/status", response_model=ControllerStatusResponse)
 async def get_controller_status():
     """Returns overall status of the SDN controller and load balancer."""
+    status = await controller_client.get_status()
     return ControllerStatusResponse(
-        controller_status="RUNNING",
-        active_algorithm="round_robin",
-        algorithm_description="Sequential round-robin distribution across available servers.",
-        total_requests=0,
-        healthy_servers_count=len(CONFIG.SERVERS),
-        total_servers_count=len(CONFIG.SERVERS),
-        virtual_ip=CONFIG.VIRTUAL_IP,
+        controller_status=status.get("controller_status", "RUNNING"),
+        active_algorithm=status.get("active_algorithm", "round_robin"),
+        algorithm_description=status.get("algorithm_description", "Sequential round-robin distribution across available servers."),
+        total_requests=status.get("total_requests", 0),
+        healthy_servers_count=status.get("healthy_servers_count", len(CONFIG.SERVERS)),
+        total_servers_count=status.get("total_servers_count", len(CONFIG.SERVERS)),
+        virtual_ip=status.get("virtual_ip", CONFIG.VIRTUAL_IP),
     )
 
 
@@ -46,6 +48,7 @@ async def switch_algorithm(req: AlgorithmChangeRequest):
             status_code=400,
             detail=f"Unknown algorithm '{req.algorithm}'. Valid options: {list(ALGORITHMS.keys())}"
         )
+    await controller_client.set_algorithm(req.algorithm.lower())
     return {
         "status": "success",
         "active_algorithm": req.algorithm.lower(),

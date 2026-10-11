@@ -2,6 +2,7 @@
 Main Ryu SDN Controller Application for Dynamic Load Balancing.
 """
 
+import json
 import logging
 from typing import Any, Dict, Optional
 
@@ -51,6 +52,8 @@ class SDNLoadBalancerApp(app_manager.RyuApp):
 
         # Start background telemetry polling thread
         self.monitor_thread = hub.spawn(self._telemetry_monitor_loop)
+        # Start background IPC server for FastAPI communication
+        self.ipc_thread = hub.spawn(self._start_ipc_server)
         logger.info("SDN Dynamic Load Balancer App initialized.")
 
     def add_event_listener(self, listener_fn):
@@ -313,3 +316,78 @@ class SDNLoadBalancerApp(app_manager.RyuApp):
                 summary="Telemetry statistics refreshed",
             )
         )
+
+    def _start_ipc_server(self):
+        """Starts a lightweight HTTP server on 127.0.0.1:8088 using Eventlet WSGI."""
+        try:
+            import eventlet
+            import eventlet.wsgi
+            sock = eventlet.listen(("127.0.0.1", 8088))
+            logger.info("Ryu Controller IPC server listening on http://127.0.0.1:8088")
+            eventlet.wsgi.server(sock, self._handle_ipc_request, log_output=False)
+        except Exception as e:
+            logger.warning(f"Could not bind Ryu IPC server: {e}")
+
+    def _handle_ipc_request(self, env, start_response):
+        """Dispatches internal IPC requests from FastAPI."""
+        path = env.get("PATH_INFO", "")
+        method = env.get("REQUEST_METHOD", "GET")
+
+        if path == "/status" and method == "GET":
+            healthy = [s.id for s in self.health_monitor.get_healthy_servers()]
+            data = {
+                "controller_status": "RUNNING",
+                "active_algorithm": self.load_balancer.active_algorithm.name,
+                "algorithm_description": self.load_balancer.active_algorithm.description,
+                "total_requests": self.load_balancer.total_requests,
+                "healthy_servers_count": len(healthy),
+                "total_servers_count": len(CONFIG.SERVERS),
+                "virtual_ip": CONFIG.VIRTUAL_IP,
+                "telemetry": self.telemetry.get_all_metrics(),
+            }
+            body = json.dumps(data).encode("utf-8")
+            start_response("200 OK", [("Content-Type", "application/json"), ("Content-Length", str(len(body)))])
+            return [body]
+
+        elif path == "/telemetry" and method == "GET":
+            body = json.dumps(self.telemetry.get_all_metrics()).encode("utf-8")
+            start_response("200 OK", [("Content-Type", "application/json"), ("Content-Length", str(len(body)))])
+            return [body]
+
+        elif path == "/algorithm" and method == "POST":
+            try:
+                length = int(env.get("CONTENT_LENGTH", "0"))
+                payload = json.loads(env["wsgi.input"].read(length).decode("utf-8"))
+                algo = payload.get("algorithm", "")
+                self.load_balancer.set_algorithm(algo)
+                res = {"status": "success", "active_algorithm": self.load_balancer.active_algorithm.name}
+            except Exception as e:
+                res = {"status": "error", "message": str(e)}
+            body = json.dumps(res).encode("utf-8")
+            start_response("200 OK", [("Content-Type", "application/json"), ("Content-Length", str(len(body)))])
+            return [body]
+
+        elif path == "/health" and method == "POST":
+            try:
+                length = int(env.get("CONTENT_LENGTH", "0"))
+                payload = json.loads(env["wsgi.input"].read(length).decode("utf-8"))
+                sid = payload.get("server_id")
+                status_str = payload.get("status", "HEALTHY")
+                from controller.events import ServerHealthState
+                self.health_monitor.set_server_state(sid, ServerHealthState(status_str), reason=payload.get("reason", "API"))
+                res = {"status": "success"}
+            except Exception as e:
+                res = {"status": "error", "message": str(e)}
+            body = json.dumps(res).encode("utf-8")
+            start_response("200 OK", [("Content-Type", "application/json"), ("Content-Length", str(len(body)))])
+            return [body]
+
+        elif path == "/reset_flows" and method == "POST":
+            self.load_balancer.active_connections.clear()
+            res = {"status": "success", "message": "Connection tracker reset"}
+            body = json.dumps(res).encode("utf-8")
+            start_response("200 OK", [("Content-Type", "application/json"), ("Content-Length", str(len(body)))])
+            return [body]
+
+        start_response("404 Not Found", [("Content-Length", "0")])
+        return [b""]

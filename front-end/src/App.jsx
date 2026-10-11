@@ -7,7 +7,8 @@ import MetricsDashboard from './components/MetricsDashboard';
 import SimulationPanel from './components/SimulationPanel';
 import FlowTableModal from './components/FlowTableModal';
 import ServerDetailModal from './components/ServerDetailModal';
-import { Network, BarChart2, ShieldCheck, Activity } from 'lucide-react';
+import BenchmarkingLab from './components/benchmark/BenchmarkingLab';
+import { Network, BarChart2, ShieldCheck, Activity, FlaskConical } from 'lucide-react';
 
 export default function App() {
   const {
@@ -29,9 +30,10 @@ export default function App() {
     toggleServerHealth,
     updateServerWeight,
     triggerSingleRequest,
+    addLog,
   } = useSDNData();
 
-  const [activeTab, setActiveTab] = useState('topology'); // 'topology' | 'analytics'
+  const [activeTab, setActiveTab] = useState('topology'); // 'topology' | 'analytics' | 'benchmark'
   const [showFlowModal, setShowFlowModal] = useState(false);
   const [selectedServerModal, setSelectedServerModal] = useState(null);
 
@@ -74,6 +76,18 @@ export default function App() {
             >
               <BarChart2 className="w-4 h-4" />
               Live Telemetry Analytics
+            </button>
+
+            <button
+              onClick={() => setActiveTab('benchmark')}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 ${
+                activeTab === 'benchmark'
+                  ? 'bg-sky-500 text-slate-950 shadow-lg shadow-sky-500/20'
+                  : 'bg-slate-900 text-slate-400 hover:text-slate-200 border border-slate-800'
+              }`}
+            >
+              <FlaskConical className="w-4 h-4" />
+              Benchmarking Lab
             </button>
           </div>
 
@@ -125,6 +139,11 @@ export default function App() {
               controllerStatus={controllerStatus}
             />
           </div>
+        )}
+
+        {/* Tab 3: Benchmarking Laboratory View */}
+        {activeTab === 'benchmark' && (
+          <BenchmarkingLab addLog={addLog} />
         )}
       </main>
 
