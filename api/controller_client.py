@@ -98,6 +98,34 @@ class ControllerClient:
         except Exception:
             return False
 
+    async def trigger_request(self) -> Dict[str, Any]:
+        """Triggers a client request via the controller load balancer."""
+        try:
+            async with httpx.AsyncClient(timeout=1.0) as client:
+                res = await client.post(f"{self.base_url}/request")
+                if res.status_code == 200:
+                    data = res.json()
+                    self._local_total_requests = data.get("total_requests", self._local_total_requests + 1)
+                    return data
+        except Exception as e:
+            logger.debug(f"Could not forward request to Ryu: {e}")
+
+        # Fallback local simulation if Ryu is unreachable
+        self._local_total_requests += 1
+        healthy = [s for s in CONFIG.SERVERS if self._local_server_health.get(s.id, "HEALTHY") == "HEALTHY"]
+        if not healthy:
+            return {"status": "error", "message": "No healthy servers available"}
+        selected = healthy[self._local_total_requests % len(healthy)]
+        return {
+            "status": "success",
+            "selected_server": selected.id,
+            "ip": selected.ip,
+            "port": selected.port,
+            "switch_port": selected.switch_port,
+            "total_requests": self._local_total_requests,
+            "algorithm": self._local_active_algorithm,
+        }
+
     async def get_telemetry(self) -> Dict[str, Any]:
         """Retrieves live OpenFlow telemetry metrics from Ryu."""
         try:

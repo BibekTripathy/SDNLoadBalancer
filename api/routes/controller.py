@@ -71,3 +71,12 @@ async def get_servers():
         )
         for s in CONFIG.SERVERS
     ]
+
+
+@router.post("/request")
+async def trigger_client_request():
+    """Triggers an HTTP GET request to Virtual IP 10.0.0.100, dynamically routed by the active algorithm."""
+    result = await controller_client.trigger_request()
+    if result.get("status") == "error":
+        raise HTTPException(status_code=503, detail=result.get("message", "Request failed"))
+    return result

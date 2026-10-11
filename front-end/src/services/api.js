@@ -31,6 +31,17 @@ export const switchAlgorithm = async (algorithmId) => {
   return response.json();
 };
 
+export const triggerClientRequest = async () => {
+  const response = await fetch(`${API_BASE_URL}/api/controller/request`, {
+    method: 'POST',
+  });
+  if (!response.ok) {
+    const err = await response.json();
+    throw new Error(err.detail || 'Failed to trigger request');
+  }
+  return response.json();
+};
+
 export const fetchServers = async () => {
   const response = await fetch(`${API_BASE_URL}/api/servers`);
   if (!response.ok) {

@@ -184,6 +184,26 @@ export default function TopologyCanvas({
     return () => clearInterval(spawnInterval);
   }, [trafficRate, lastSelectedServer, servers, nodes]);
 
+  // Whenever lastSelectedServer changes (e.g. Round Robin selection), immediately animate packet
+  const prevSelectedRef = useRef(lastSelectedServer);
+  useEffect(() => {
+    if (!lastSelectedServer || !nodes[lastSelectedServer] || !nodes.client || !nodes.switch) return;
+    if (prevSelectedRef.current === lastSelectedServer) return;
+    prevSelectedRef.current = lastSelectedServer;
+
+    const targetNode = nodes[lastSelectedServer];
+    spawnPacket(nodes.client, nodes.switch, '#38BDF8');
+    setTimeout(() => {
+      spawnPacket(nodes.switch, targetNode, '#A855F7');
+    }, 300);
+    setTimeout(() => {
+      spawnPacket(targetNode, nodes.switch, '#34D399', true);
+      setTimeout(() => {
+        spawnPacket(nodes.switch, nodes.client, '#34D399', true);
+      }, 300);
+    }, 700);
+  }, [lastSelectedServer, nodes]);
+
   // Main canvas animation render loop
   useEffect(() => {
     const canvas = canvasRef.current;

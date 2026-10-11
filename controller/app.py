@@ -524,6 +524,47 @@ class SDNLoadBalancerApp(app_manager.RyuApp):
             start_response("200 OK", [("Content-Type", "application/json"), ("Content-Length", str(len(body)))])
             return [body]
 
+        elif path == "/request" and method == "POST":
+            try:
+                import random
+                client_ip = f"10.0.0.{random.randint(10, 50)}"
+                client_port = random.randint(10000, 60000)
+                client_info = {
+                    "client_ip": client_ip,
+                    "client_port": client_port,
+                    "protocol": "TCP",
+                }
+                selected_server, reasoning = self.load_balancer.select_backend(client_info=client_info)
+                
+                # If no real OpenFlow switch is connected, update telemetry counters
+                if not self.datapaths:
+                    self.telemetry.update_active_connections(selected_server.id, 1)
+                    met = self.telemetry.metrics.get(selected_server.id)
+                    if met:
+                        met.rx_bytes += random.randint(500, 1500)
+                        met.tx_bytes += random.randint(1500, 4500)
+                        met.rx_packets += 1
+                        met.tx_packets += 1
+                        met.packet_rate = round(random.uniform(5.0, 30.0), 2)
+                        met.bandwidth_mbps = round(random.uniform(1.2, 5.0), 2)
+                        met.latency_ms = round(random.uniform(1.2, 3.2), 2)
+
+                res = {
+                    "status": "success",
+                    "selected_server": selected_server.id,
+                    "ip": selected_server.ip,
+                    "port": selected_server.port,
+                    "switch_port": selected_server.switch_port,
+                    "total_requests": self.load_balancer.total_requests,
+                    "algorithm": self.load_balancer.active_algorithm.name,
+                    "reasoning": reasoning,
+                }
+            except Exception as e:
+                res = {"status": "error", "message": str(e)}
+            body = json.dumps(res).encode("utf-8")
+            start_response("200 OK", [("Content-Type", "application/json"), ("Content-Length", str(len(body)))])
+            return [body]
+
         start_response("404 Not Found", [("Content-Length", "0")])
         return [b""]
 

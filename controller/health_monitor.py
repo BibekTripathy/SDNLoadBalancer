@@ -35,9 +35,27 @@ class HealthMonitor:
         # Start active background health checking thread
         self.monitor_thread = hub.spawn(self._active_health_check_loop)
 
+    def _is_mininet_active(self) -> bool:
+        try:
+            import subprocess
+            res = subprocess.run(
+                ["ovs-vsctl", "br-exists", "s1"],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                timeout=0.5,
+            )
+            return res.returncode == 0
+        except Exception:
+            return False
+
     def _active_health_check_loop(self):
-        """Continuously polls backend servers to verify they are alive."""
+        """Continuously polls backend servers to verify they are alive when real Mininet is running."""
         while True:
+            # If real Mininet switch is not running, skip network socket probing so mock/demo servers remain healthy
+            if not self._is_mininet_active():
+                hub.sleep(CONFIG.HEALTH_CHECK_INTERVAL)
+                continue
+
             # Copy items so dict mutation during dynamic add/remove is safe
             for server_id, server in list(self.servers.items()):
                 # Do not override administratively draining servers back to HEALTHY
