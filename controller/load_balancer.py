@@ -11,7 +11,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from controller.algorithms import BaseLoadBalancerAlgorithm, get_algorithm
 from controller.config import CONFIG, BackendServer
-from controller.events import ControllerEvent, EventType
+from controller.events import ControllerEvent, EventType, ServerHealthState
 from controller.health_monitor import HealthMonitor
 from controller.telemetry import TelemetryCollector
 
@@ -54,6 +54,17 @@ class LoadBalancerEngine:
                 
             hub.sleep(30.0)
 
+    def cleanup_server_connections(self, server_id: str) -> int:
+        """Removes all active connection tracking entries for a removed server."""
+        stale_keys = [
+            k for k, (server, _) in self.active_connections.items()
+            if server.id == server_id
+        ]
+        for k in stale_keys:
+            del self.active_connections[k]
+        logger.info(f"Cleaned up {len(stale_keys)} active connection(s) for server {server_id}")
+        return len(stale_keys)
+
     def set_algorithm(self, algorithm_name: str) -> None:
         """Dynamically switches active load balancing algorithm at runtime."""
         old_algo = self.active_algorithm.name
@@ -85,9 +96,16 @@ class LoadBalancerEngine:
             conn_key = (client_ip, client_port)
             if conn_key in self.active_connections:
                 saved_server, _ = self.active_connections[conn_key]
-                # Refresh timestamp
-                self.active_connections[conn_key] = (saved_server, time.time())
-                return saved_server, "Existing connection"
+                # Ensure server is still registered and not down
+                srv_state = self.health_monitor.get_server_state(saved_server.id)
+                srv_exists = CONFIG.get_server(saved_server.id) is not None
+                if srv_exists and srv_state != ServerHealthState.DOWN:
+                    # Refresh timestamp and allow existing session to proceed (including draining)
+                    self.active_connections[conn_key] = (saved_server, time.time())
+                    return saved_server, "Existing connection"
+                else:
+                    # Server was shut down or deleted
+                    del self.active_connections[conn_key]
 
         healthy_servers = self.health_monitor.get_healthy_servers()
         if not healthy_servers:
@@ -105,6 +123,7 @@ class LoadBalancerEngine:
         # 2. Save the assignment in our connection tracker
         if client_ip and client_port:
             self.active_connections[(client_ip, client_port)] = (selected_server, time.time())
+
 
         if self.event_callback:
             event = ControllerEvent(

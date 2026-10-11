@@ -109,6 +109,101 @@ class ControllerClient:
             pass
         return self.get_default_telemetry()
 
+    async def get_servers(self) -> List[Dict[str, Any]]:
+        """Retrieves registered backend servers from Ryu or local configuration."""
+        try:
+            async with httpx.AsyncClient(timeout=0.8) as client:
+                res = await client.get(f"{self.base_url}/servers")
+                if res.status_code == 200:
+                    return res.json()
+        except Exception:
+            pass
+
+        return [
+            {
+                "id": s.id,
+                "server_id": s.id,
+                "ip": s.ip,
+                "port": s.port,
+                "switch_port": s.switch_port,
+                "weight": s.weight,
+                "status": self._local_server_health.get(s.id, "HEALTHY"),
+            }
+            for s in CONFIG.SERVERS
+        ]
+
+    async def add_server(self, server_dict: Dict[str, Any]) -> Dict[str, Any]:
+        """Creates and registers a new backend server."""
+        from controller.config import BackendServer
+        new_server = BackendServer(
+            id=server_dict["id"].strip(),
+            ip=server_dict["ip"].strip(),
+            port=int(server_dict.get("port", 80)),
+            switch_port=int(server_dict["switch_port"]),
+            weight=int(server_dict.get("weight", 1)),
+        )
+        # Validate and add to local CONFIG registry
+        CONFIG.add_server(new_server)
+        self._local_server_health[new_server.id] = "HEALTHY"
+
+        try:
+            async with httpx.AsyncClient(timeout=1.0) as client:
+                await client.post(f"{self.base_url}/servers", json=server_dict)
+        except Exception as e:
+            logger.debug(f"Could not notify Ryu of added server: {e}")
+
+        return {
+            "id": new_server.id,
+            "server_id": new_server.id,
+            "ip": new_server.ip,
+            "port": new_server.port,
+            "switch_port": new_server.switch_port,
+            "weight": new_server.weight,
+            "status": "HEALTHY",
+        }
+
+    async def remove_server(self, server_id: str) -> Dict[str, Any]:
+        """Safely removes a backend server from the pool."""
+        removed = CONFIG.remove_server(server_id)
+        self._local_server_health.pop(server_id, None)
+
+        try:
+            async with httpx.AsyncClient(timeout=1.0) as client:
+                await client.delete(f"{self.base_url}/servers/{server_id}")
+        except Exception as e:
+            logger.debug(f"Could not notify Ryu of removed server: {e}")
+
+        return {"server_id": server_id, "ip": removed.ip}
+
+    async def drain_server(self, server_id: str) -> bool:
+        """Puts a backend server into DRAINING state."""
+        self._local_server_health[server_id] = "DRAINING"
+        try:
+            async with httpx.AsyncClient(timeout=1.0) as client:
+                res = await client.post(f"{self.base_url}/servers/{server_id}/drain")
+                return res.status_code == 200
+        except Exception as e:
+            logger.debug(f"Could not notify Ryu of drain state: {e}")
+            return False
+
+    async def update_server_weight(self, server_id: str, weight: int) -> bool:
+        """Updates weight for a server."""
+        CONFIG.update_server_weight(server_id, weight)
+        try:
+            async with httpx.AsyncClient(timeout=1.0) as client:
+                res = await client.post(
+                    f"{self.base_url}/servers/{server_id}/weight",
+                    json={"weight": weight},
+                )
+                return res.status_code == 200
+        except Exception as e:
+            logger.debug(f"Could not notify Ryu of weight update: {e}")
+            return False
+
+    def suggest_next_server(self) -> Dict[str, Any]:
+        """Returns auto-suggested non-colliding server configuration."""
+        return CONFIG.suggest_next_server_config()
+
     def get_default_telemetry(self) -> Dict[str, Dict[str, Any]]:
         """Returns baseline telemetry schema for all servers."""
         return {
@@ -130,3 +225,4 @@ class ControllerClient:
 
 
 controller_client = ControllerClient()
+

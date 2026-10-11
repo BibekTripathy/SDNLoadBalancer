@@ -7,6 +7,7 @@ import MetricsDashboard from './components/MetricsDashboard';
 import SimulationPanel from './components/SimulationPanel';
 import FlowTableModal from './components/FlowTableModal';
 import ServerDetailModal from './components/ServerDetailModal';
+import AddServerModal from './components/AddServerModal';
 import BenchmarkingLab from './components/benchmark/BenchmarkingLab';
 import { Network, BarChart2, ShieldCheck, Activity, FlaskConical } from 'lucide-react';
 
@@ -28,6 +29,9 @@ export default function App() {
     lastSelectedServer,
     switchAlgorithm,
     toggleServerHealth,
+    addServer,
+    removeServer,
+    drainServer,
     updateServerWeight,
     triggerSingleRequest,
     addLog,
@@ -35,6 +39,7 @@ export default function App() {
 
   const [activeTab, setActiveTab] = useState('topology'); // 'topology' | 'analytics' | 'benchmark'
   const [showFlowModal, setShowFlowModal] = useState(false);
+  const [showAddServerModal, setShowAddServerModal] = useState(false);
   const [selectedServerModal, setSelectedServerModal] = useState(null);
 
   return (
@@ -109,6 +114,7 @@ export default function App() {
               onSelectServer={(srv) => setSelectedServerModal(srv)}
               trafficRate={trafficRate}
               onTriggerRequest={triggerSingleRequest}
+              onAddServer={() => setShowAddServerModal(true)}
             />
 
             {/* Algorithm Selector */}
@@ -124,6 +130,7 @@ export default function App() {
               setTrafficRate={setTrafficRate}
               servers={servers}
               onToggleServerHealth={toggleServerHealth}
+              onDrainServer={drainServer}
               trafficLogs={trafficLogs}
             />
           </div>
@@ -149,7 +156,7 @@ export default function App() {
 
       {/* Footer */}
       <footer className="border-t border-slate-900 bg-slate-950/80 py-4 px-6 text-center text-xs text-slate-500 font-mono">
-        🚀 SDN Load Balancer Dashboard v0.11 (Test Vercel)• Ryu OpenFlow 1.3 Controller • Mininet Network Topology Simulation
+        🚀 SDN Load Balancer Dashboard v0.12 • Ryu OpenFlow 1.3 Controller • Mininet Network Topology Simulation
       </footer>
 
       {/* Flow Table Modal */}
@@ -161,16 +168,33 @@ export default function App() {
         />
       )}
 
+      {/* Add Server Modal */}
+      <AddServerModal
+        isOpen={showAddServerModal}
+        onClose={() => setShowAddServerModal(false)}
+        onAddServer={addServer}
+        existingServers={servers}
+        simulationMode={simulationMode}
+      />
+
       {/* Server Detail Inspector Modal */}
       {selectedServerModal && (
         <ServerDetailModal
-          server={servers.find((s) => s.id === selectedServerModal.id) || selectedServerModal}
-          metrics={currentMetrics[selectedServerModal.id]}
+          server={
+            servers.find(
+              (s) =>
+                (s.id || s.server_id) === (selectedServerModal.id || selectedServerModal.server_id)
+            ) || selectedServerModal
+          }
+          metrics={currentMetrics[selectedServerModal.id || selectedServerModal.server_id]}
           onClose={() => setSelectedServerModal(null)}
           onToggleHealth={toggleServerHealth}
+          onDrainServer={drainServer}
+          onRemoveServer={removeServer}
           onUpdateWeight={updateServerWeight}
         />
       )}
     </div>
   );
 }
+

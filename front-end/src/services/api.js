@@ -32,8 +32,67 @@ export const switchAlgorithm = async (algorithmId) => {
 };
 
 export const fetchServers = async () => {
-  const response = await fetch(`${API_BASE_URL}/api/controller/servers`);
-  if (!response.ok) throw new Error('Failed to fetch server pool');
+  const response = await fetch(`${API_BASE_URL}/api/servers`);
+  if (!response.ok) {
+    // Fallback to legacy endpoint if needed
+    const fallback = await fetch(`${API_BASE_URL}/api/controller/servers`);
+    if (!fallback.ok) throw new Error('Failed to fetch server pool');
+    return fallback.json();
+  }
+  return response.json();
+};
+
+export const fetchServerSuggest = async () => {
+  const response = await fetch(`${API_BASE_URL}/api/servers/suggest`);
+  if (!response.ok) throw new Error('Failed to fetch server suggestion');
+  return response.json();
+};
+
+export const addServer = async (serverData) => {
+  const response = await fetch(`${API_BASE_URL}/api/servers`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(serverData),
+  });
+  if (!response.ok) {
+    const err = await response.json();
+    throw new Error(err.detail || 'Failed to add backend server');
+  }
+  return response.json();
+};
+
+export const removeServer = async (serverId) => {
+  const response = await fetch(`${API_BASE_URL}/api/servers/${serverId}`, {
+    method: 'DELETE',
+  });
+  if (!response.ok) {
+    const err = await response.json();
+    throw new Error(err.detail || 'Failed to remove backend server');
+  }
+  return response.json();
+};
+
+export const drainServer = async (serverId) => {
+  const response = await fetch(`${API_BASE_URL}/api/servers/${serverId}/drain`, {
+    method: 'POST',
+  });
+  if (!response.ok) {
+    const err = await response.json();
+    throw new Error(err.detail || 'Failed to drain backend server');
+  }
+  return response.json();
+};
+
+export const updateServerWeight = async (serverId, weight) => {
+  const response = await fetch(`${API_BASE_URL}/api/servers/${serverId}/weight`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ weight: parseInt(weight, 10) }),
+  });
+  if (!response.ok) {
+    const err = await response.json();
+    throw new Error(err.detail || 'Failed to update server weight');
+  }
   return response.json();
 };
 
@@ -44,7 +103,7 @@ export const fetchTelemetry = async () => {
 };
 
 export const updateServerHealth = async (serverId, status, reason = 'Manual update via UI') => {
-  const response = await fetch(`${API_BASE_URL}/api/health/override`, {
+  const response = await fetch(`${API_BASE_URL}/api/servers/${serverId}/health`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -54,11 +113,25 @@ export const updateServerHealth = async (serverId, status, reason = 'Manual upda
     }),
   });
   if (!response.ok) {
-    const err = await response.json();
-    throw new Error(err.detail || 'Failed to update server health');
+    // Fallback to legacy endpoint
+    const fallback = await fetch(`${API_BASE_URL}/api/health/override`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        server_id: serverId,
+        status: status.toUpperCase(),
+        reason,
+      }),
+    });
+    if (!fallback.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.detail || 'Failed to update server health');
+    }
+    return fallback.json();
   }
   return response.json();
 };
+
 
 export const connectWebSocket = (onMessage, onError, onClose) => {
   try {

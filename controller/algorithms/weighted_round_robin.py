@@ -45,6 +45,9 @@ class WeightedRoundRobinAlgorithm(BaseLoadBalancerAlgorithm):
         gcd_weight = self._get_gcd_weights(servers)
         num_servers = len(servers)
 
+        if self.current_weight > max_weight:
+            self.current_weight = max_weight
+
         while True:
             self.current_index = (self.current_index + 1) % num_servers
             if self.current_index == 0:
@@ -54,6 +57,7 @@ class WeightedRoundRobinAlgorithm(BaseLoadBalancerAlgorithm):
                     if self.current_weight == 0:
                         selected = servers[0]
                         break
+
             if servers[self.current_index].weight >= self.current_weight:
                 selected = servers[self.current_index]
                 break

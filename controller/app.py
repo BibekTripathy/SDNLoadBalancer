@@ -382,6 +382,141 @@ class SDNLoadBalancerApp(app_manager.RyuApp):
             start_response("200 OK", [("Content-Type", "application/json"), ("Content-Length", str(len(body)))])
             return [body]
 
+        elif path == "/servers" and method == "GET":
+            servers_data = [
+                {
+                    "id": s.id,
+                    "server_id": s.id,
+                    "ip": s.ip,
+                    "port": s.port,
+                    "switch_port": s.switch_port,
+                    "weight": s.weight,
+                    "status": self.health_monitor.get_server_state(s.id).value,
+                }
+                for s in CONFIG.SERVERS
+            ]
+            body = json.dumps(servers_data).encode("utf-8")
+            start_response("200 OK", [("Content-Type", "application/json"), ("Content-Length", str(len(body)))])
+            return [body]
+
+        elif path == "/servers/suggest" and method == "GET":
+            suggestion = CONFIG.suggest_next_server_config()
+            body = json.dumps(suggestion).encode("utf-8")
+            start_response("200 OK", [("Content-Type", "application/json"), ("Content-Length", str(len(body)))])
+            return [body]
+
+        elif path == "/servers" and method == "POST":
+            try:
+                length = int(env.get("CONTENT_LENGTH", "0"))
+                payload = json.loads(env["wsgi.input"].read(length).decode("utf-8"))
+                new_srv = BackendServer(
+                    id=payload.get("id", "").strip(),
+                    ip=payload.get("ip", "").strip(),
+                    port=int(payload.get("port", 80)),
+                    switch_port=int(payload.get("switch_port", 2)),
+                    weight=int(payload.get("weight", 1)),
+                )
+                CONFIG.add_server(new_srv)
+                from controller.events import ServerHealthState
+                self.health_monitor.add_server(new_srv, initial_state=ServerHealthState.HEALTHY)
+                self.telemetry.add_server(new_srv)
+
+                # Emit SERVER_ADDED event
+                self.on_controller_event(
+                    ControllerEvent(
+                        event_type=EventType.SERVER_ADDED,
+                        data={
+                            "server_id": new_srv.id,
+                            "ip": new_srv.ip,
+                            "port": new_srv.port,
+                            "switch_port": new_srv.switch_port,
+                            "weight": new_srv.weight,
+                        },
+                        summary=f"Backend server {new_srv.id} ({new_srv.ip}) added to cluster",
+                    )
+                )
+
+                res = {
+                    "status": "success",
+                    "server": {
+                        "id": new_srv.id,
+                        "ip": new_srv.ip,
+                        "port": new_srv.port,
+                        "switch_port": new_srv.switch_port,
+                        "weight": new_srv.weight,
+                        "status": "HEALTHY",
+                    },
+                }
+            except Exception as e:
+                res = {"status": "error", "message": str(e)}
+            body = json.dumps(res).encode("utf-8")
+            start_response("200 OK", [("Content-Type", "application/json"), ("Content-Length", str(len(body)))])
+            return [body]
+
+        elif path.startswith("/servers/") and method == "DELETE":
+            try:
+                sid = path.split("/")[2]
+                removed = CONFIG.remove_server(sid)
+                self.health_monitor.remove_server(sid)
+                self.telemetry.remove_server(sid)
+                self.load_balancer.cleanup_server_connections(sid)
+
+                # Clean up switch OpenFlow rules for this server
+                for flow_mgr in self.flow_managers.values():
+                    try:
+                        flow_mgr.delete_server_flows(removed.ip, removed.switch_port)
+                    except Exception as fe:
+                        logger.warning(f"Could not delete switch flows for {sid}: {fe}")
+
+                self.on_controller_event(
+                    ControllerEvent(
+                        event_type=EventType.SERVER_REMOVED,
+                        data={"server_id": sid, "ip": removed.ip},
+                        summary=f"Backend server {sid} removed from cluster",
+                    )
+                )
+                res = {"status": "success", "message": f"Server {sid} removed"}
+            except Exception as e:
+                res = {"status": "error", "message": str(e)}
+            body = json.dumps(res).encode("utf-8")
+            start_response("200 OK", [("Content-Type", "application/json"), ("Content-Length", str(len(body)))])
+            return [body]
+
+        elif path.endswith("/drain") and method == "POST":
+            try:
+                parts = path.strip("/").split("/")
+                sid = parts[1]
+                from controller.events import ServerHealthState
+                self.health_monitor.set_server_state(sid, ServerHealthState.DRAINING, reason="Administrative drain")
+                self.on_controller_event(
+                    ControllerEvent(
+                        event_type=EventType.SERVER_DRAINING,
+                        data={"server_id": sid},
+                        summary=f"Backend server {sid} set to draining state",
+                    )
+                )
+                res = {"status": "success", "message": f"Server {sid} set to DRAINING"}
+            except Exception as e:
+                res = {"status": "error", "message": str(e)}
+            body = json.dumps(res).encode("utf-8")
+            start_response("200 OK", [("Content-Type", "application/json"), ("Content-Length", str(len(body)))])
+            return [body]
+
+        elif path.endswith("/weight") and method == "POST":
+            try:
+                parts = path.strip("/").split("/")
+                sid = parts[1]
+                length = int(env.get("CONTENT_LENGTH", "0"))
+                payload = json.loads(env["wsgi.input"].read(length).decode("utf-8"))
+                weight = int(payload.get("weight", 1))
+                CONFIG.update_server_weight(sid, weight)
+                res = {"status": "success", "server_id": sid, "weight": weight}
+            except Exception as e:
+                res = {"status": "error", "message": str(e)}
+            body = json.dumps(res).encode("utf-8")
+            start_response("200 OK", [("Content-Type", "application/json"), ("Content-Length", str(len(body)))])
+            return [body]
+
         elif path == "/reset_flows" and method == "POST":
             self.load_balancer.active_connections.clear()
             res = {"status": "success", "message": "Connection tracker reset"}
@@ -391,3 +526,4 @@ class SDNLoadBalancerApp(app_manager.RyuApp):
 
         start_response("404 Not Found", [("Content-Length", "0")])
         return [b""]
+

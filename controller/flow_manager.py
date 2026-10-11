@@ -174,3 +174,33 @@ class FlowManager:
         logger.info(
             f"Installed bidirectional LB flows for {client_ip}:{client_port} <-> {server.id} ({server.ip})"
         )
+
+    def delete_server_flows(self, server_ip: str, switch_port: int) -> None:
+        """Deletes all forwarding rules related to a specific backend server."""
+        match_fwd = self.parser.OFPMatch(
+            eth_type=ether.ETH_TYPE_IP,
+            ipv4_dst=server_ip,
+        )
+        mod_fwd = self.parser.OFPFlowMod(
+            datapath=self.datapath,
+            command=self.ofproto.OFPFC_DELETE,
+            out_port=self.ofproto.OFPP_ANY,
+            out_group=self.ofproto.OFPG_ANY,
+            match=match_fwd,
+        )
+        self.datapath.send_msg(mod_fwd)
+
+        match_rev = self.parser.OFPMatch(
+            eth_type=ether.ETH_TYPE_IP,
+            ipv4_src=server_ip,
+        )
+        mod_rev = self.parser.OFPFlowMod(
+            datapath=self.datapath,
+            command=self.ofproto.OFPFC_DELETE,
+            out_port=self.ofproto.OFPP_ANY,
+            out_group=self.ofproto.OFPG_ANY,
+            match=match_rev,
+        )
+        self.datapath.send_msg(mod_rev)
+        logger.info(f"Deleted OpenFlow rules for backend {server_ip} on port {switch_port}")
+

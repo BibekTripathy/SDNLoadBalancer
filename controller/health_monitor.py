@@ -38,7 +38,12 @@ class HealthMonitor:
     def _active_health_check_loop(self):
         """Continuously polls backend servers to verify they are alive."""
         while True:
-            for server_id, server in self.servers.items():
+            # Copy items so dict mutation during dynamic add/remove is safe
+            for server_id, server in list(self.servers.items()):
+                # Do not override administratively draining servers back to HEALTHY
+                if self.health_states.get(server_id) == ServerHealthState.DRAINING:
+                    continue
+
                 try:
                     url = f"http://{server.ip}:{server.port}/"
                     # Short timeout so it doesn't block the greenthread forever
@@ -52,12 +57,29 @@ class HealthMonitor:
             
             hub.sleep(CONFIG.HEALTH_CHECK_INTERVAL)
 
+    def add_server(
+        self, server: BackendServer, initial_state: ServerHealthState = ServerHealthState.HEALTHY
+    ) -> None:
+        """Dynamically registers a newly added server into the health monitor."""
+        self.servers[server.id] = server
+        self.health_states[server.id] = initial_state
+        logger.info(f"Health monitor registered new backend: {server.id} ({server.ip})")
+
+    def remove_server(self, server_id: str) -> None:
+        """Removes a backend server from the health monitor."""
+        if server_id in self.servers:
+            del self.servers[server_id]
+        if server_id in self.health_states:
+            del self.health_states[server_id]
+        logger.info(f"Health monitor removed backend: {server_id}")
+
     def get_healthy_servers(self) -> List[BackendServer]:
         """Returns the list of servers currently in HEALTHY state."""
         return [
             s for s in self.servers.values()
-            if self.health_states[s.id] == ServerHealthState.HEALTHY
+            if self.health_states.get(s.id) == ServerHealthState.HEALTHY
         ]
+
 
     def get_server_state(self, server_id: str) -> ServerHealthState:
         """Returns current health state of a given server."""

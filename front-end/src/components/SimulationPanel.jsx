@@ -6,6 +6,7 @@ export default function SimulationPanel({
   setTrafficRate,
   servers,
   onToggleServerHealth,
+  onDrainServer,
   trafficLogs,
 }) {
   return (
@@ -75,41 +76,69 @@ export default function SimulationPanel({
         </div>
 
         <p className="text-xs text-slate-400 mb-3">
-          Simulate instant server failures to observe how the SDN controller dynamically reroutes traffic without packet drops.
+          Simulate server failures and draining to observe how the SDN controller dynamically reroutes traffic without packet drops.
         </p>
 
-        <div className="space-y-2.5">
+        <div className="space-y-2.5 max-h-60 overflow-y-auto pr-1 custom-scrollbar">
           {servers.map((srv) => {
+            const srvId = srv.id || srv.server_id;
             const isHealthy = srv.status === 'HEALTHY';
+            const isDraining = srv.status === 'DRAINING';
 
             return (
               <div
-                key={srv.id}
+                key={srvId}
                 className="flex items-center justify-between p-2.5 bg-slate-900/80 rounded-xl border border-slate-800"
               >
                 <div>
-                  <div className="text-xs font-bold text-slate-200">{srv.id}</div>
+                  <div className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
+                    <span>{srvId}</span>
+                    <span
+                      className={`text-[9px] px-1.5 py-0.2 rounded font-mono ${
+                        isHealthy
+                          ? 'bg-emerald-950 text-emerald-400 border border-emerald-800'
+                          : isDraining
+                          ? 'bg-amber-950 text-amber-400 border border-amber-800'
+                          : 'bg-red-950 text-red-400 border border-red-800'
+                      }`}
+                    >
+                      {srv.status}
+                    </span>
+                  </div>
                   <div className="text-[10px] font-mono text-slate-400">
                     {srv.ip} • Port {srv.switch_port}
                   </div>
                 </div>
 
-                <button
-                  onClick={() => onToggleServerHealth(srv.id, isHealthy ? 'DOWN' : 'HEALTHY')}
-                  className={`px-3 py-1 rounded-lg text-xs font-mono border flex items-center gap-1.5 transition ${
-                    isHealthy
-                      ? 'bg-red-500/10 hover:bg-red-500/20 text-red-400 border-red-500/30'
-                      : 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
-                  }`}
-                >
-                  <Power className="w-3 h-3" />
-                  {isHealthy ? 'Simulate Failure' : 'Recover Server'}
-                </button>
+                <div className="flex items-center gap-1.5">
+                  {onDrainServer && isHealthy && (
+                    <button
+                      onClick={() => onDrainServer(srvId)}
+                      title="Drain active connections"
+                      className="px-2 py-1 rounded-lg text-[10px] font-mono border bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border-amber-500/30 transition"
+                    >
+                      Drain
+                    </button>
+                  )}
+
+                  <button
+                    onClick={() => onToggleServerHealth(srvId, isHealthy ? 'DOWN' : 'HEALTHY')}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-mono border flex items-center gap-1 transition ${
+                      isHealthy
+                        ? 'bg-red-500/10 hover:bg-red-500/20 text-red-400 border-red-500/30'
+                        : 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+                    }`}
+                  >
+                    <Power className="w-3 h-3" />
+                    {isHealthy ? 'Fail' : 'Recover'}
+                  </button>
+                </div>
               </div>
             );
           })}
         </div>
       </div>
+
 
       {/* 3. Live Traffic & Event Terminal Console */}
       <div className="glass-panel p-5 rounded-2xl border border-slate-800 shadow-xl flex flex-col h-64 lg:h-auto">

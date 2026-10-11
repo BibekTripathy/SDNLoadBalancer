@@ -45,6 +45,25 @@ class TelemetryCollector:
         }
         self._prev_stats: Dict[int, Dict[str, Any]] = {}
 
+    def add_server(self, server: BackendServer) -> None:
+        """Registers a newly added backend server into telemetry tracking."""
+        self.servers_by_port[server.switch_port] = server
+        self.servers_by_id[server.id] = server
+        self.metrics[server.id] = ServerTelemetry(
+            server_id=server.id, switch_port=server.switch_port
+        )
+        logger.info(f"Telemetry collector registered backend: {server.id} on port {server.switch_port}")
+
+    def remove_server(self, server_id: str) -> None:
+        """Safely removes backend server and cleans up its telemetry state."""
+        server = self.servers_by_id.pop(server_id, None)
+        if server:
+            self.servers_by_port.pop(server.switch_port, None)
+            self._prev_stats.pop(server.switch_port, None)
+        self.metrics.pop(server_id, None)
+        logger.info(f"Telemetry collector cleaned up backend: {server_id}")
+
+
     def update_port_stats(self, port_stats_list: list) -> None:
         """Processes OFPPortStats replies to update bandwidth and throughput metrics."""
         now = time.time()

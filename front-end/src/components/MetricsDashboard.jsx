@@ -32,36 +32,44 @@ export default function MetricsDashboard({
   servers,
   controllerStatus,
 }) {
-  // Chart 1: Bandwidth Over Time (Line Chart)
+  const COLOR_PALETTE = [
+    { border: '#38BDF8', bg: 'rgba(56, 189, 248, 0.1)' }, // Sky
+    { border: '#818CF8', bg: 'rgba(129, 140, 248, 0.1)' }, // Indigo
+    { border: '#34D399', bg: 'rgba(52, 211, 153, 0.1)' }, // Emerald
+    { border: '#F59E0B', bg: 'rgba(245, 158, 11, 0.1)' }, // Amber
+    { border: '#EC4899', bg: 'rgba(236, 72, 153, 0.1)' }, // Pink
+    { border: '#A855F7', bg: 'rgba(168, 85, 247, 0.1)' }, // Purple
+    { border: '#14B8A6', bg: 'rgba(20, 184, 166, 0.1)' }, // Teal
+    { border: '#F43F5E', bg: 'rgba(244, 63, 94, 0.1)' },  // Rose
+  ];
+
+  // Chart 1: Bandwidth Over Time (Dynamic Line Chart per Server)
   const lineLabels = metricsHistory.map((h) => h.time);
+  const lineDatasets = servers.map((srv, idx) => {
+    const srvId = srv.id || srv.server_id;
+    const palette = COLOR_PALETTE[idx % COLOR_PALETTE.length];
+    return {
+      label: `${srvId} (${srv.ip})`,
+      data: metricsHistory.map((h) => h[`${srvId}_bw`] ?? h[`${srv.id}_bw`] ?? 0),
+      borderColor: palette.border,
+      backgroundColor: palette.bg,
+      tension: 0.3,
+      fill: true,
+    };
+  });
+
   const lineData = {
     labels: lineLabels.length ? lineLabels : ['00:00', '00:01', '00:02'],
-    datasets: [
-      {
-        label: 'Server 1 (Mbps)',
-        data: metricsHistory.map((h) => h.server1_bw),
-        borderColor: '#38BDF8',
-        backgroundColor: 'rgba(56, 189, 248, 0.1)',
-        tension: 0.3,
-        fill: true,
-      },
-      {
-        label: 'Server 2 (Mbps)',
-        data: metricsHistory.map((h) => h.server2_bw),
-        borderColor: '#818CF8',
-        backgroundColor: 'rgba(129, 140, 248, 0.1)',
-        tension: 0.3,
-        fill: true,
-      },
-      {
-        label: 'Server 3 (Mbps)',
-        data: metricsHistory.map((h) => h.server3_bw),
-        borderColor: '#34D399',
-        backgroundColor: 'rgba(52, 211, 153, 0.1)',
-        tension: 0.3,
-        fill: true,
-      },
-    ],
+    datasets: lineDatasets.length
+      ? lineDatasets
+      : [
+          {
+            label: 'No Servers',
+            data: [0, 0, 0],
+            borderColor: '#64748B',
+            backgroundColor: 'rgba(100, 116, 139, 0.1)',
+          },
+        ],
   };
 
   const lineOptions = {
@@ -86,20 +94,26 @@ export default function MetricsDashboard({
     },
   };
 
-  // Chart 2: Active Connections & Packet Rate Bar Chart
-  const serverNames = servers.map((s) => s.id);
+  // Chart 2: Active Connections & Packet Rate Dynamic Bar Chart
+  const serverNames = servers.map((s) => s.id || s.server_id);
   const barData = {
-    labels: serverNames,
+    labels: serverNames.length ? serverNames : ['None'],
     datasets: [
       {
         label: 'Active TCP Connections',
-        data: servers.map((s) => currentMetrics[s.id]?.active_connections || 0),
+        data: servers.map((s) => {
+          const srvId = s.id || s.server_id;
+          return currentMetrics[srvId]?.active_connections || 0;
+        }),
         backgroundColor: '#38BDF8',
         borderRadius: 6,
       },
       {
         label: 'Packet Rate (pkt/s)',
-        data: servers.map((s) => currentMetrics[s.id]?.packet_rate || 0),
+        data: servers.map((s) => {
+          const srvId = s.id || s.server_id;
+          return currentMetrics[srvId]?.packet_rate || 0;
+        }),
         backgroundColor: '#A855F7',
         borderRadius: 6,
       },
@@ -128,11 +142,18 @@ export default function MetricsDashboard({
     },
   };
 
-  // Compute aggregate stats
+  // Compute aggregate stats across all active servers
+  const healthyCount = servers.filter((s) => s.status === 'HEALTHY').length;
+  const drainingCount = servers.filter((s) => s.status === 'DRAINING').length;
+  const downCount = servers.filter((s) => s.status === 'DOWN').length;
+
   const totalBw = Object.values(currentMetrics)
     .reduce((acc, m) => acc + (m.bandwidth_mbps || 0), 0)
     .toFixed(2);
-  const totalConns = Object.values(currentMetrics).reduce((acc, m) => acc + (m.active_connections || 0), 0);
+  const totalConns = Object.values(currentMetrics).reduce(
+    (acc, m) => acc + (m.active_connections || 0),
+    0
+  );
   const avgLatency = (
     Object.values(currentMetrics).reduce((acc, m) => acc + (m.latency_ms || 0), 0) /
     (servers.length || 1)
@@ -179,9 +200,16 @@ export default function MetricsDashboard({
           <div>
             <div className="text-xs text-slate-400 font-mono">SERVER POOL HEALTH</div>
             <div className="text-2xl font-extrabold text-purple-400 font-mono mt-1">
-              {controllerStatus.healthy_servers_count} / {controllerStatus.total_servers_count}
+              {healthyCount} / {servers.length}
             </div>
-            <div className="text-[10px] text-slate-500 mt-0.5">Active backend instances</div>
+            <div className="text-[10px] text-slate-500 mt-0.5">
+              {drainingCount > 0
+                ? `${drainingCount} draining • `
+                : downCount > 0
+                ? `${downCount} down • `
+                : ''}
+              Active backend instances
+            </div>
           </div>
           <div className="p-3 bg-purple-500/10 text-purple-400 rounded-xl border border-purple-500/20">
             <Server className="w-6 h-6" />

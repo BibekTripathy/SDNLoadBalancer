@@ -6,6 +6,10 @@ import {
   fetchServers,
   fetchTelemetry,
   updateServerHealth as apiUpdateServerHealth,
+  addServer as apiAddServer,
+  removeServer as apiRemoveServer,
+  drainServer as apiDrainServer,
+  updateServerWeight as apiUpdateServerWeight,
   connectWebSocket,
 } from '../services/api';
 
@@ -71,14 +75,14 @@ export function useSDNData() {
         priority: 100,
         match: 'in_port=1, eth_type=0x0800, ipv4_dst=10.0.0.100',
         actions: `LOAD_BALANCER(${activeAlgorithm.toUpperCase()}) -> rewrite_dst_ip, output(port_var)`,
-        description: `Virtual IP mapping to Healthy Pool [${healthy.map((h) => h.id).join(', ')}]`,
+        description: `Virtual IP mapping to Healthy Pool [${healthy.map((h) => h.id || h.server_id).join(', ')}]`,
       },
       ...servers.map((s) => ({
         table: 0,
         priority: 100,
         match: `in_port=${s.switch_port}, eth_type=0x0800, ipv4_src=${s.ip}`,
         actions: `set_field:10.0.0.100->ipv4_src, set_field:00:00:00:00:00:FE->eth_src, output:1`,
-        description: `Reverse NAT: Map ${s.id} (${s.ip}) response back to Virtual IP 10.0.0.100`,
+        description: `Reverse NAT: Map ${s.id || s.server_id} (${s.ip}) response back to Virtual IP 10.0.0.100`,
       })),
       {
         table: 0,
@@ -127,12 +131,42 @@ export function useSDNData() {
     ws = connectWebSocket(
       (eventData) => {
         if (eventData.event_type === 'SERVER_HEALTH_CHANGED') {
+          const srvId = eventData.data.server_id;
           setServers((prev) =>
             prev.map((s) =>
-              s.id === eventData.data.server_id ? { ...s, status: eventData.data.new_state } : s
+              (s.id || s.server_id) === srvId ? { ...s, status: eventData.data.new_state } : s
             )
           );
-          addLog(`Server ${eventData.data.server_id} state changed to ${eventData.data.new_state} (${eventData.data.reason})`, 'warning');
+          addLog(`Server ${srvId} state changed to ${eventData.data.new_state} (${eventData.data.reason})`, 'warning');
+        } else if (eventData.event_type === 'SERVER_ADDED') {
+          const newSrv = eventData.data;
+          const srvId = newSrv.server_id || newSrv.id;
+          setServers((prev) => {
+            if (prev.some((s) => (s.id || s.server_id) === srvId)) return prev;
+            return [...prev, { ...newSrv, id: srvId }];
+          });
+          addLog(eventData.summary || `Backend server ${srvId} added to pool`, 'success');
+        } else if (eventData.event_type === 'SERVER_REMOVED') {
+          const removedId = eventData.data.server_id;
+          setServers((prev) => prev.filter((s) => (s.id || s.server_id) !== removedId));
+          setCurrentMetrics((prev) => {
+            const copy = { ...prev };
+            delete copy[removedId];
+            return copy;
+          });
+          addLog(eventData.summary || `Backend server ${removedId} removed from pool`, 'warning');
+        } else if (eventData.event_type === 'SERVER_DRAINING') {
+          const srvId = eventData.data.server_id;
+          setServers((prev) =>
+            prev.map((s) => ((s.id || s.server_id) === srvId ? { ...s, status: 'DRAINING' } : s))
+          );
+          addLog(eventData.summary || `Backend server ${srvId} marked as DRAINING`, 'warning');
+        } else if (eventData.event_type === 'SERVER_WEIGHT_UPDATED') {
+          const { server_id, weight } = eventData.data;
+          setServers((prev) =>
+            prev.map((s) => ((s.id || s.server_id) === server_id ? { ...s, weight } : s))
+          );
+          addLog(eventData.summary || `Server ${server_id} weight capacity set to ${weight}`, 'info');
         } else if (eventData.event_type === 'ALGORITHM_CHANGED') {
           setActiveAlgorithm(eventData.data.new_algorithm);
           addLog(`Algorithm updated via controller to ${eventData.data.new_algorithm}`, 'info');
@@ -161,25 +195,21 @@ export function useSDNData() {
         setCurrentMetrics(metrics);
 
         const timeLabel = new Date().toLocaleTimeString([], { hour12: false, minute: '2-digit', second: '2-digit' });
-        setMetricsHistory((prev) => [
-          ...prev.slice(-19),
-          {
-            time: timeLabel,
-            server1_bw: metrics.server1?.bandwidth_mbps || 0,
-            server2_bw: metrics.server2?.bandwidth_mbps || 0,
-            server3_bw: metrics.server3?.bandwidth_mbps || 0,
-            server1_conns: metrics.server1?.active_connections || 0,
-            server2_conns: metrics.server2?.active_connections || 0,
-            server3_conns: metrics.server3?.active_connections || 0,
-          },
-        ]);
+        const historyItem = { time: timeLabel };
+        servers.forEach((s) => {
+          const srvId = s.id || s.server_id;
+          historyItem[`${srvId}_bw`] = metrics[srvId]?.bandwidth_mbps || 0;
+          historyItem[`${srvId}_conns`] = metrics[srvId]?.active_connections || 0;
+        });
+
+        setMetricsHistory((prev) => [...prev.slice(-19), historyItem]);
       } catch (err) {
-        console.error("Failed to fetch live telemetry:", err);
+        console.error('Failed to fetch live telemetry:', err);
       }
     }, 2000);
 
     return () => clearInterval(interval);
-  }, [simulationMode, isLiveConnected]);
+  }, [simulationMode, isLiveConnected, servers]);
 
   // Simulation telemetry loop when in simulation mode
   useEffect(() => {
@@ -187,7 +217,26 @@ export function useSDNData() {
 
     const interval = setInterval(() => {
       const healthyServers = servers.filter((s) => s.status === 'HEALTHY');
-      if (healthyServers.length === 0) return;
+      const timeLabel = new Date().toLocaleTimeString([], { hour12: false, minute: '2-digit', second: '2-digit' });
+
+      if (healthyServers.length === 0) {
+        // All servers are down or draining
+        const zeroMetrics = {};
+        servers.forEach((srv) => {
+          const srvId = srv.id || srv.server_id;
+          zeroMetrics[srvId] = {
+            server_id: srvId,
+            switch_port: srv.switch_port,
+            bandwidth_mbps: 0.0,
+            packet_rate: 0,
+            active_connections: 0,
+            latency_ms: 0,
+            packet_loss_ratio: 1.0,
+          };
+        });
+        setCurrentMetrics(zeroMetrics);
+        return;
+      }
 
       // Pick target server according to active algorithm logic for animation / metric distribution
       let chosenServer = healthyServers[0];
@@ -207,33 +256,42 @@ export function useSDNData() {
         }
       } else if (activeAlgorithm === 'least_connections') {
         chosenServer = [...healthyServers].sort(
-          (a, b) => (currentMetrics[a.id]?.active_connections || 0) - (currentMetrics[b.id]?.active_connections || 0)
+          (a, b) =>
+            (currentMetrics[a.id || a.server_id]?.active_connections || 0) -
+            (currentMetrics[b.id || b.server_id]?.active_connections || 0)
         )[0];
       } else if (activeAlgorithm === 'least_bandwidth') {
         chosenServer = [...healthyServers].sort(
-          (a, b) => (currentMetrics[a.id]?.bandwidth_mbps || 0) - (currentMetrics[b.id]?.bandwidth_mbps || 0)
+          (a, b) =>
+            (currentMetrics[a.id || a.server_id]?.bandwidth_mbps || 0) -
+            (currentMetrics[b.id || b.server_id]?.bandwidth_mbps || 0)
         )[0];
       } else if (activeAlgorithm === 'random') {
         chosenServer = healthyServers[Math.floor(Math.random() * healthyServers.length)];
       } else if (activeAlgorithm === 'adaptive') {
-        // Weighted composite score based on low latency and low active connections
         chosenServer = [...healthyServers].sort((a, b) => {
-          const scoreA = (currentMetrics[a.id]?.latency_ms || 2) * 0.5 + (currentMetrics[a.id]?.active_connections || 0) * 0.5;
-          const scoreB = (currentMetrics[b.id]?.latency_ms || 2) * 0.5 + (currentMetrics[b.id]?.active_connections || 0) * 0.5;
+          const aId = a.id || a.server_id;
+          const bId = b.id || b.server_id;
+          const scoreA =
+            (currentMetrics[aId]?.latency_ms || 2) * 0.5 +
+            (currentMetrics[aId]?.active_connections || 0) * 0.5;
+          const scoreB =
+            (currentMetrics[bId]?.latency_ms || 2) * 0.5 +
+            (currentMetrics[bId]?.active_connections || 0) * 0.5;
           return scoreA - scoreB;
         })[0];
       }
 
-      setLastSelectedServer(chosenServer.id);
+      const chosenId = chosenServer.id || chosenServer.server_id;
+      setLastSelectedServer(chosenId);
 
-      // Generate randomized realistic variance
-      const timeLabel = new Date().toLocaleTimeString([], { hour12: false, minute: '2-digit', second: '2-digit' });
+      // Generate randomized realistic variance per server
       const newMetrics = {};
-
       servers.forEach((srv) => {
+        const srvId = srv.id || srv.server_id;
         if (srv.status !== 'HEALTHY') {
-          newMetrics[srv.id] = {
-            server_id: srv.id,
+          newMetrics[srvId] = {
+            server_id: srvId,
             switch_port: srv.switch_port,
             bandwidth_mbps: 0.0,
             packet_rate: 0,
@@ -244,14 +302,20 @@ export function useSDNData() {
           return;
         }
 
-        const isChosen = srv.id === chosenServer.id;
-        const baseConns = isChosen ? Math.floor(trafficRate * 0.6 + Math.random() * 5) : Math.max(1, Math.floor(Math.random() * 4));
-        const baseBw = isChosen ? Number((trafficRate * 0.25 + Math.random() * 1.5).toFixed(2)) : Number((0.5 + Math.random() * 0.5).toFixed(2));
-        const basePkt = isChosen ? Math.floor(trafficRate * 3 + Math.random() * 10) : Math.floor(Math.random() * 5);
+        const isChosen = srvId === chosenId;
+        const baseConns = isChosen
+          ? Math.floor(trafficRate * 0.6 + Math.random() * 5)
+          : Math.max(1, Math.floor(Math.random() * 4));
+        const baseBw = isChosen
+          ? Number((trafficRate * 0.25 + Math.random() * 1.5).toFixed(2))
+          : Number((0.5 + Math.random() * 0.5).toFixed(2));
+        const basePkt = isChosen
+          ? Math.floor(trafficRate * 3 + Math.random() * 10)
+          : Math.floor(Math.random() * 5);
         const latency = Number((1.2 + Math.random() * 1.4).toFixed(2));
 
-        newMetrics[srv.id] = {
-          server_id: srv.id,
+        newMetrics[srvId] = {
+          server_id: srvId,
           switch_port: srv.switch_port,
           bandwidth_mbps: baseBw,
           packet_rate: basePkt,
@@ -263,24 +327,21 @@ export function useSDNData() {
 
       setCurrentMetrics(newMetrics);
 
-      // Append to history for real-time charting (keep last 20 ticks)
-      setMetricsHistory((prev) => [
-        ...prev.slice(-19),
-        {
-          time: timeLabel,
-          server1_bw: newMetrics.server1?.bandwidth_mbps || 0,
-          server2_bw: newMetrics.server2?.bandwidth_mbps || 0,
-          server3_bw: newMetrics.server3?.bandwidth_mbps || 0,
-          server1_conns: newMetrics.server1?.active_connections || 0,
-          server2_conns: newMetrics.server2?.active_connections || 0,
-          server3_conns: newMetrics.server3?.active_connections || 0,
-        },
-      ]);
+      // Append to history for real-time charting
+      const historyItem = { time: timeLabel };
+      servers.forEach((s) => {
+        const srvId = s.id || s.server_id;
+        historyItem[`${srvId}_bw`] = newMetrics[srvId]?.bandwidth_mbps || 0;
+        historyItem[`${srvId}_conns`] = newMetrics[srvId]?.active_connections || 0;
+      });
+
+      setMetricsHistory((prev) => [...prev.slice(-19), historyItem]);
 
       setControllerStatus((prev) => ({
         ...prev,
         total_requests: prev.total_requests + Math.max(1, Math.floor(trafficRate / 2)),
         healthy_servers_count: healthyServers.length,
+        total_servers_count: servers.length,
       }));
     }, 1500);
 
@@ -310,9 +371,12 @@ export function useSDNData() {
   // Handler to update server health
   const toggleServerHealth = async (serverId, newStatus) => {
     setServers((prev) =>
-      prev.map((s) => (s.id === serverId ? { ...s, status: newStatus } : s))
+      prev.map((s) => ((s.id || s.server_id) === serverId ? { ...s, status: newStatus } : s))
     );
-    addLog(`Server ${serverId} health state set to ${newStatus}`, newStatus === 'HEALTHY' ? 'success' : 'warning');
+    addLog(
+      `Server ${serverId} health state set to ${newStatus}`,
+      newStatus === 'HEALTHY' ? 'success' : 'warning'
+    );
 
     if (!simulationMode) {
       try {
@@ -323,12 +387,103 @@ export function useSDNData() {
     }
   };
 
-  // Handler to update server weight
-  const updateServerWeight = (serverId, weight) => {
+  // Handler to add a server
+  const addServerHandler = async (serverData) => {
+    const cleanId = serverData.id || serverData.server_id;
+    const cleanData = {
+      ...serverData,
+      id: cleanId,
+      server_id: cleanId,
+    };
+
+    if (!simulationMode) {
+      try {
+        const result = await apiAddServer(cleanData);
+        setServers((prev) => {
+          if (prev.some((s) => (s.id || s.server_id) === cleanId)) return prev;
+          return [...prev, { ...cleanData, status: result.status || 'HEALTHY' }];
+        });
+        addLog(`[Live Mode] Backend ${cleanId} deployed and registered`, 'success');
+        return result;
+      } catch (err) {
+        addLog(`Backend deployment error: ${err.message}`, 'error');
+        throw err;
+      }
+    } else {
+      setServers((prev) => [...prev, cleanData]);
+      setCurrentMetrics((prev) => ({
+        ...prev,
+        [cleanId]: {
+          bandwidth_mbps: 0.0,
+          packet_rate: 0,
+          active_connections: 0,
+          latency_ms: 1.5,
+          packet_loss_ratio: 0.0,
+        },
+      }));
+      addLog(`[Simulation] Backend server ${cleanId} added to pool`, 'success');
+      return cleanData;
+    }
+  };
+
+  // Handler to remove a server
+  const removeServerHandler = async (serverId) => {
+    if (!simulationMode) {
+      try {
+        await apiRemoveServer(serverId);
+        setServers((prev) => prev.filter((s) => (s.id || s.server_id) !== serverId));
+        setCurrentMetrics((prev) => {
+          const copy = { ...prev };
+          delete copy[serverId];
+          return copy;
+        });
+        addLog(`[Live Mode] Backend ${serverId} removed and OpenFlow rules cleaned`, 'warning');
+      } catch (err) {
+        addLog(`Backend removal error: ${err.message}`, 'error');
+        throw err;
+      }
+    } else {
+      setServers((prev) => prev.filter((s) => (s.id || s.server_id) !== serverId));
+      setCurrentMetrics((prev) => {
+        const copy = { ...prev };
+        delete copy[serverId];
+        return copy;
+      });
+      addLog(`[Simulation] Backend ${serverId} removed from pool`, 'warning');
+    }
+  };
+
+  // Handler to drain server
+  const drainServerHandler = async (serverId) => {
     setServers((prev) =>
-      prev.map((s) => (s.id === serverId ? { ...s, weight: Math.max(1, parseInt(weight, 10) || 1) } : s))
+      prev.map((s) => ((s.id || s.server_id) === serverId ? { ...s, status: 'DRAINING' } : s))
     );
-    addLog(`Updated ${serverId} weight capacity to ${weight}`, 'info');
+    addLog(`Server ${serverId} marked as DRAINING (rejecting new selections)`, 'warning');
+
+    if (!simulationMode) {
+      try {
+        await apiDrainServer(serverId);
+      } catch (err) {
+        addLog(`Backend drain error: ${err.message}`, 'error');
+      }
+    }
+  };
+
+  // Handler to update server weight
+  const updateWeightHandler = async (serverId, weight) => {
+    const numWeight = Math.max(1, parseInt(weight, 10) || 1);
+    setServers((prev) =>
+      prev.map((s) => ((s.id || s.server_id) === serverId ? { ...s, weight: numWeight } : s))
+    );
+    addLog(`Updated ${serverId} weight capacity to ${numWeight}`, 'info');
+
+    if (!simulationMode) {
+      try {
+        await apiUpdateServerWeight(serverId, numWeight);
+      } catch (err) {
+        addLog(`Backend weight update error: ${err.message}`, 'error');
+      }
+    }
   };
 
   // Send single manual test packet request from client
@@ -339,7 +494,11 @@ export function useSDNData() {
       return;
     }
     const target = healthyServers[Math.floor(Math.random() * healthyServers.length)];
-    addLog(`HTTP GET http://10.0.0.100:80 -> Routed to ${target.id} (${target.ip}:80) via Switch Port ${target.switch_port}`, 'success');
+    const targetId = target.id || target.server_id;
+    addLog(
+      `HTTP GET http://10.0.0.100:80 -> Routed to ${targetId} (${target.ip}:80) via Switch Port ${target.switch_port}`,
+      'success'
+    );
   };
 
   return {
@@ -359,8 +518,12 @@ export function useSDNData() {
     lastSelectedServer,
     switchAlgorithm: switchAlgoHandler,
     toggleServerHealth,
-    updateServerWeight,
+    addServer: addServerHandler,
+    removeServer: removeServerHandler,
+    drainServer: drainServerHandler,
+    updateServerWeight: updateWeightHandler,
     triggerSingleRequest,
     addLog,
   };
 }
+
