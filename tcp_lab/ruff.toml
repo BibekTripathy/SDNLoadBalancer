@@ -1,0 +1,16 @@
+# Ruff settings for tcp_lab/ only (the rest of the repo keeps ruff's defaults).
+#
+# tcp_lab is written to be explained line by line in a viva, so it uses plain
+# loops and if-statements on purpose. These rules would push it towards
+# compact one-liners (max(), min(), any(), comprehensions, ternaries), so they
+# are switched off here. Every other default rule still applies.
+[lint]
+ignore = [
+    "PLR1730",  # "replace if-statement with max()/min()"
+    "PLC0206",  # "use dict.items() instead of indexing in the loop"
+    "SIM102",   # "merge nested if-statements"
+    "SIM108",   # "use a ternary operator instead of if/else"
+    "SIM110",   # "use any()/all() instead of a for loop"
+    "PERF401",  # "use a list comprehension instead of append in a loop"
+    "UP031",    # "use f-strings instead of % formatting"
+]
