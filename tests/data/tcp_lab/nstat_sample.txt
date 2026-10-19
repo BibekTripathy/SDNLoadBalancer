@@ -1,0 +1,10 @@
+#kernel
+IpInReceives                    2696               0.0
+TcpOutSegs                      2720               0.0
+TcpRetransSegs                  50                 0.0
+TcpExtTCPRenoRecovery           22                 0.0
+TcpExtTCPLostRetransmit         0                  0.0
+TcpExtTCPFastRetrans            45                 0.0
+TcpExtTCPSlowStartRetrans       2                  0.0
+TcpExtTCPTimeouts               3                  0.0
+TcpExtTCPRenoRecoveryFail       0                  0.0
