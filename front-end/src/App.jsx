@@ -9,7 +9,8 @@ import FlowTableModal from './components/FlowTableModal';
 import ServerDetailModal from './components/ServerDetailModal';
 import AddServerModal from './components/AddServerModal';
 import BenchmarkingLab from './components/benchmark/BenchmarkingLab';
-import { Network, BarChart2, ShieldCheck, Activity, FlaskConical } from 'lucide-react';
+import TcpLab from './components/tcplab/TcpLab';
+import { Network, BarChart2, ShieldCheck, Activity, FlaskConical, Gauge } from 'lucide-react';
 
 export default function App() {
   const {
@@ -37,7 +38,7 @@ export default function App() {
     addLog,
   } = useSDNData();
 
-  const [activeTab, setActiveTab] = useState('topology'); // 'topology' | 'analytics' | 'benchmark'
+  const [activeTab, setActiveTab] = useState('topology'); // 'topology' | 'analytics' | 'benchmark' | 'tcplab'
   const [showFlowModal, setShowFlowModal] = useState(false);
   const [showAddServerModal, setShowAddServerModal] = useState(false);
   const [selectedServerModal, setSelectedServerModal] = useState(null);
@@ -93,6 +94,18 @@ export default function App() {
             >
               <FlaskConical className="w-4 h-4" />
               Benchmarking Lab
+            </button>
+
+            <button
+              onClick={() => setActiveTab('tcplab')}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 ${
+                activeTab === 'tcplab'
+                  ? 'bg-sky-500 text-slate-950 shadow-lg shadow-sky-500/20'
+                  : 'bg-slate-900 text-slate-400 hover:text-slate-200 border border-slate-800'
+              }`}
+            >
+              <Gauge className="w-4 h-4" />
+              TCP Lab
             </button>
           </div>
 
@@ -152,6 +165,9 @@ export default function App() {
         {activeTab === 'benchmark' && (
           <BenchmarkingLab addLog={addLog} />
         )}
+
+        {/* Tab 4: TCP Congestion Control Lab */}
+        {activeTab === 'tcplab' && <TcpLab addLog={addLog} />}
       </main>
 
       {/* Footer */}

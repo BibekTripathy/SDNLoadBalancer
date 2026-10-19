@@ -220,3 +220,35 @@ export const deleteBenchmark = async (id) => {
 export const getBenchmarkCsvUrl = (id) => `${API_BASE_URL}/api/benchmarks/${id}/export.csv`;
 export const getBenchmarkJsonUrl = (id) => `${API_BASE_URL}/api/benchmarks/${id}/export.json`;
 
+
+// TCP Congestion Control Lab API (/api/tcp-lab). The page only DISPLAYS what
+// these return; every TCP number is computed by the backend.
+const getJson = async (path, what) => {
+  const response = await fetch(`${API_BASE_URL}${path}`);
+  if (response.status === 404) return null;
+  if (!response.ok) throw new Error(`Failed to fetch ${what}`);
+  return response.json();
+};
+
+const postJson = async (path, body, what) => {
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    const detail = typeof err.detail === 'string' ? err.detail : `Failed to ${what}`;
+    throw new Error(detail);
+  }
+  return response.json();
+};
+
+export const fetchTcpLabScenarios = () => getJson('/api/tcp-lab/scenarios', 'TCP lab scenarios');
+export const fetchTcpLabAnalysis = () => getJson('/api/tcp-lab/analysis', 'TCP lab analysis');
+export const fetchTcpLabTimeseries = (scenario, variant, run = 1) =>
+  getJson(`/api/tcp-lab/results/${scenario}/${variant}/timeseries?run=${run}`, 'TCP lab time series');
+export const startTcpLabSimulation = (body) => postJson('/api/tcp-lab/live/simulate', body, 'start simulation');
+export const startTcpLabReplay = (body) => postJson('/api/tcp-lab/live/replay', body, 'start replay');
+export const stopTcpLabRun = () => postJson('/api/tcp-lab/live/stop', {}, 'stop run');
+export const getTcpLabPlotUrl = (name) => `${API_BASE_URL}/api/tcp-lab/analysis/plots/${name}`;
