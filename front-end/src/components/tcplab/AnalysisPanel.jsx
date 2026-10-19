@@ -1,8 +1,39 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Award, CheckSquare } from 'lucide-react';
 import SourceBadge from './SourceBadge';
 import { ALGORITHM_LABELS, formatStats } from './tcpLabStyle';
-import { getTcpLabPlotUrl } from '../../services/api';
+import { fetchTcpLabPlot } from '../../services/api';
+
+/**
+ * A plot PNG from the backend. Fetched with the API client (an <img src> to the
+ * backend could not send the ngrok header) and shown from a blob: URL.
+ */
+function PlotImage({ name, alt, className }) {
+  const [plot, setPlot] = useState({ name: null, url: null, failed: false });
+
+  useEffect(() => {
+    let closed = false;
+    let url = null;
+    fetchTcpLabPlot(name)
+      .then((blobUrl) => {
+        url = blobUrl;
+        if (closed) URL.revokeObjectURL(blobUrl);
+        else setPlot({ name, url: blobUrl, failed: false });
+      })
+      .catch(() => {
+        if (!closed) setPlot({ name, url: null, failed: true });
+      });
+    return () => {
+      closed = true;
+      if (url) URL.revokeObjectURL(url);
+    };
+  }, [name]);
+
+  // Until the new plot arrives, show nothing rather than the previous scenario's plot
+  if (plot.name !== name) return null;
+  if (plot.failed) return <p className="text-xs text-slate-500 font-mono">Plot {name} is not available.</p>;
+  return <img src={plot.url} alt={alt} className={className} />;
+}
 
 function number(value, digits = 2) {
   return value === null || value === undefined ? '-' : Number(value).toFixed(digits);
@@ -114,14 +145,14 @@ export default function AnalysisPanel({ analysis, scenarioId }) {
       {scenarioId && (
         <div className="glass-panel p-5 rounded-2xl border border-slate-800 space-y-3">
           <h3 className="text-sm font-bold text-slate-100">Analysis plots</h3>
-          <img
-            src={getTcpLabPlotUrl(`${scenarioId}_comparison.png`)}
+          <PlotImage
+            name={`${scenarioId}_comparison.png`}
             alt={`${scenarioId}: goodput, retransmissions, timeouts and recovery time for every algorithm`}
             className="w-full rounded-xl bg-white"
           />
           {(scenarioId === 'S6' || scenarioId === 'S6Q') && (
-            <img
-              src={getTcpLabPlotUrl('s6_goodput_vs_rtt.png')}
+            <PlotImage
+              name="s6_goodput_vs_rtt.png"
               alt="S6: goodput against RTT with the Mathis formula"
               className="w-full max-w-3xl rounded-xl bg-white"
             />

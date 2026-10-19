@@ -20,8 +20,8 @@ import {
   fetchBenchmarkDetails,
   cancelBenchmark,
   deleteBenchmark,
-  getBenchmarkCsvUrl,
-  getBenchmarkJsonUrl,
+  downloadBenchmarkCsv,
+  downloadBenchmarkJson,
 } from '../../services/api';
 
 export default function BenchmarkingLab({ addLog }) {
@@ -180,28 +180,26 @@ export default function BenchmarkingLab({ addLog }) {
 
           {/* Export CSV */}
           {activeBenchmark && (
-            <a
-              href={getBenchmarkCsvUrl(activeBenchmark.id)}
-              download={`benchmark-${activeBenchmark.id}.csv`}
+            <button
+              onClick={() => downloadBenchmarkCsv(activeBenchmark.id).catch((err) => setErrorMsg(err.message))}
               className="px-3 py-2 bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 rounded-xl flex items-center gap-1.5 transition shadow-sm"
               title="Export Tabular Results to CSV"
             >
               <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-400" />
               <span>CSV</span>
-            </a>
+            </button>
           )}
 
           {/* Export JSON */}
           {activeBenchmark && (
-            <a
-              href={getBenchmarkJsonUrl(activeBenchmark.id)}
-              download={`benchmark-${activeBenchmark.id}.json`}
+            <button
+              onClick={() => downloadBenchmarkJson(activeBenchmark.id).catch((err) => setErrorMsg(err.message))}
               className="px-3 py-2 bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 rounded-xl flex items-center gap-1.5 transition shadow-sm"
               title="Export Complete Run Details to JSON"
             >
               <FileCode className="w-3.5 h-3.5 text-sky-400" />
               <span>JSON</span>
-            </a>
+            </button>
           )}
         </div>
       </div>

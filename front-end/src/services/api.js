@@ -6,20 +6,55 @@
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 const WS_BASE_URL = import.meta.env.VITE_WS_BASE_URL || 'ws://localhost:8000/ws/events';
 
+// Sent with every request. A free ngrok tunnel answers browser requests with an
+// HTML warning page (ERR_NGROK_6024, no CORS headers) unless this header is set;
+// any other server, e.g. localhost in dev, simply ignores it.
+const DEFAULT_HEADERS = { 'ngrok-skip-browser-warning': 'true' };
+
+/** The one place the dashboard calls the backend: fetch(API_BASE_URL + path) with the default headers. */
+export const apiFetch = (path, options = {}) =>
+  fetch(`${API_BASE_URL}${path}`, {
+    ...options,
+    headers: { ...DEFAULT_HEADERS, ...(options.headers || {}) },
+  });
+
+/**
+ * Fetch a file (image, CSV, ...) through apiFetch and return a blob: URL for it.
+ * Needed because <img src> and <a href> cannot send the ngrok header.
+ * The caller must URL.revokeObjectURL() it when done.
+ */
+export const fetchBlobUrl = async (path) => {
+  const response = await apiFetch(path);
+  if (!response.ok) throw new Error(`Failed to fetch ${path}`);
+  return URL.createObjectURL(await response.blob());
+};
+
+/** Download a backend file under the given name (a cross-origin <a download> would be ignored). */
+export const downloadFile = async (path, filename) => {
+  const url = await fetchBlobUrl(path);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+};
+
 export const fetchControllerStatus = async () => {
-  const response = await fetch(`${API_BASE_URL}/api/controller/status`);
+  const response = await apiFetch(`/api/controller/status`);
   if (!response.ok) throw new Error('Failed to fetch controller status');
   return response.json();
 };
 
 export const fetchAlgorithms = async () => {
-  const response = await fetch(`${API_BASE_URL}/api/controller/algorithms`);
+  const response = await apiFetch(`/api/controller/algorithms`);
   if (!response.ok) throw new Error('Failed to fetch load balancing algorithms');
   return response.json();
 };
 
 export const switchAlgorithm = async (algorithmId) => {
-  const response = await fetch(`${API_BASE_URL}/api/controller/algorithm`, {
+  const response = await apiFetch(`/api/controller/algorithm`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ algorithm: algorithmId }),
@@ -32,7 +67,7 @@ export const switchAlgorithm = async (algorithmId) => {
 };
 
 export const triggerClientRequest = async () => {
-  const response = await fetch(`${API_BASE_URL}/api/controller/request`, {
+  const response = await apiFetch(`/api/controller/request`, {
     method: 'POST',
   });
   if (!response.ok) {
@@ -43,10 +78,10 @@ export const triggerClientRequest = async () => {
 };
 
 export const fetchServers = async () => {
-  const response = await fetch(`${API_BASE_URL}/api/servers`);
+  const response = await apiFetch(`/api/servers`);
   if (!response.ok) {
     // Fallback to legacy endpoint if needed
-    const fallback = await fetch(`${API_BASE_URL}/api/controller/servers`);
+    const fallback = await apiFetch(`/api/controller/servers`);
     if (!fallback.ok) throw new Error('Failed to fetch server pool');
     return fallback.json();
   }
@@ -54,13 +89,13 @@ export const fetchServers = async () => {
 };
 
 export const fetchServerSuggest = async () => {
-  const response = await fetch(`${API_BASE_URL}/api/servers/suggest`);
+  const response = await apiFetch(`/api/servers/suggest`);
   if (!response.ok) throw new Error('Failed to fetch server suggestion');
   return response.json();
 };
 
 export const addServer = async (serverData) => {
-  const response = await fetch(`${API_BASE_URL}/api/servers`, {
+  const response = await apiFetch(`/api/servers`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(serverData),
@@ -73,7 +108,7 @@ export const addServer = async (serverData) => {
 };
 
 export const removeServer = async (serverId) => {
-  const response = await fetch(`${API_BASE_URL}/api/servers/${serverId}`, {
+  const response = await apiFetch(`/api/servers/${serverId}`, {
     method: 'DELETE',
   });
   if (!response.ok) {
@@ -84,7 +119,7 @@ export const removeServer = async (serverId) => {
 };
 
 export const drainServer = async (serverId) => {
-  const response = await fetch(`${API_BASE_URL}/api/servers/${serverId}/drain`, {
+  const response = await apiFetch(`/api/servers/${serverId}/drain`, {
     method: 'POST',
   });
   if (!response.ok) {
@@ -95,7 +130,7 @@ export const drainServer = async (serverId) => {
 };
 
 export const updateServerWeight = async (serverId, weight) => {
-  const response = await fetch(`${API_BASE_URL}/api/servers/${serverId}/weight`, {
+  const response = await apiFetch(`/api/servers/${serverId}/weight`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ weight: parseInt(weight, 10) }),
@@ -108,13 +143,13 @@ export const updateServerWeight = async (serverId, weight) => {
 };
 
 export const fetchTelemetry = async () => {
-  const response = await fetch(`${API_BASE_URL}/api/telemetry/metrics`);
+  const response = await apiFetch(`/api/telemetry/metrics`);
   if (!response.ok) throw new Error('Failed to fetch telemetry metrics');
   return response.json();
 };
 
 export const updateServerHealth = async (serverId, status, reason = 'Manual update via UI') => {
-  const response = await fetch(`${API_BASE_URL}/api/servers/${serverId}/health`, {
+  const response = await apiFetch(`/api/servers/${serverId}/health`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -125,7 +160,7 @@ export const updateServerHealth = async (serverId, status, reason = 'Manual upda
   });
   if (!response.ok) {
     // Fallback to legacy endpoint
-    const fallback = await fetch(`${API_BASE_URL}/api/health/override`, {
+    const fallback = await apiFetch(`/api/health/override`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -170,7 +205,7 @@ export const connectWebSocket = (onMessage, onError, onClose) => {
 
 // Benchmark Laboratory API
 export const startBenchmark = async (config) => {
-  const response = await fetch(`${API_BASE_URL}/api/benchmarks`, {
+  const response = await apiFetch(`/api/benchmarks`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(config),
@@ -183,26 +218,26 @@ export const startBenchmark = async (config) => {
 };
 
 export const fetchBenchmarks = async () => {
-  const response = await fetch(`${API_BASE_URL}/api/benchmarks`);
+  const response = await apiFetch(`/api/benchmarks`);
   if (!response.ok) throw new Error('Failed to fetch benchmarks list');
   return response.json();
 };
 
 export const fetchActiveBenchmark = async () => {
-  const response = await fetch(`${API_BASE_URL}/api/benchmarks/active`);
+  const response = await apiFetch(`/api/benchmarks/active`);
   if (response.status === 404) return null;
   if (!response.ok) throw new Error('Failed to fetch active benchmark');
   return response.json();
 };
 
 export const fetchBenchmarkDetails = async (id) => {
-  const response = await fetch(`${API_BASE_URL}/api/benchmarks/${id}`);
+  const response = await apiFetch(`/api/benchmarks/${id}`);
   if (!response.ok) throw new Error('Failed to fetch benchmark details');
   return response.json();
 };
 
 export const cancelBenchmark = async (id) => {
-  const response = await fetch(`${API_BASE_URL}/api/benchmarks/${id}/cancel`, {
+  const response = await apiFetch(`/api/benchmarks/${id}/cancel`, {
     method: 'POST',
   });
   if (!response.ok) throw new Error('Failed to cancel benchmark');
@@ -210,28 +245,28 @@ export const cancelBenchmark = async (id) => {
 };
 
 export const deleteBenchmark = async (id) => {
-  const response = await fetch(`${API_BASE_URL}/api/benchmarks/${id}`, {
+  const response = await apiFetch(`/api/benchmarks/${id}`, {
     method: 'DELETE',
   });
   if (!response.ok) throw new Error('Failed to delete benchmark');
   return response.json();
 };
 
-export const getBenchmarkCsvUrl = (id) => `${API_BASE_URL}/api/benchmarks/${id}/export.csv`;
-export const getBenchmarkJsonUrl = (id) => `${API_BASE_URL}/api/benchmarks/${id}/export.json`;
+export const downloadBenchmarkCsv = (id) => downloadFile(`/api/benchmarks/${id}/export.csv`, `benchmark-${id}.csv`);
+export const downloadBenchmarkJson = (id) => downloadFile(`/api/benchmarks/${id}/export.json`, `benchmark-${id}.json`);
 
 
 // TCP Congestion Control Lab API (/api/tcp-lab). The page only DISPLAYS what
 // these return; every TCP number is computed by the backend.
 const getJson = async (path, what) => {
-  const response = await fetch(`${API_BASE_URL}${path}`);
+  const response = await apiFetch(`${path}`);
   if (response.status === 404) return null;
   if (!response.ok) throw new Error(`Failed to fetch ${what}`);
   return response.json();
 };
 
 const postJson = async (path, body, what) => {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  const response = await apiFetch(`${path}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
@@ -251,4 +286,4 @@ export const fetchTcpLabTimeseries = (scenario, variant, run = 1) =>
 export const startTcpLabSimulation = (body) => postJson('/api/tcp-lab/live/simulate', body, 'start simulation');
 export const startTcpLabReplay = (body) => postJson('/api/tcp-lab/live/replay', body, 'start replay');
 export const stopTcpLabRun = () => postJson('/api/tcp-lab/live/stop', {}, 'stop run');
-export const getTcpLabPlotUrl = (name) => `${API_BASE_URL}/api/tcp-lab/analysis/plots/${name}`;
+export const fetchTcpLabPlot = (name) => fetchBlobUrl(`/api/tcp-lab/analysis/plots/${name}`);
