@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from api.routes import controller_router, health_router, telemetry_router, servers_router
 from api.benchmark.routes import router as benchmark_router
+from api.tcp_lab.routes import router as tcp_lab_router
 from api.websocket import ws_manager
 
 logging.basicConfig(level=logging.INFO)
@@ -44,6 +45,7 @@ app.include_router(servers_router)
 app.include_router(health_router)
 app.include_router(telemetry_router)
 app.include_router(benchmark_router)
+app.include_router(tcp_lab_router)
 
 
 
