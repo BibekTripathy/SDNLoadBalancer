@@ -226,3 +226,6 @@ front-end/dist-ssr/
 front-end/.local/
 .vercel
 .env*
+
+# TCP Congestion Control Lab output (CSV logs, plots, JSON)
+results/
