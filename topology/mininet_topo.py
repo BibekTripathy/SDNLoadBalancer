@@ -10,10 +10,14 @@ Topology Structure:
       * server2 (h3): 10.0.0.3 (Switch Port 3)
       * server3 (h4): 10.0.0.4 (Switch Port 4)
   - Remote Ryu Controller: 127.0.0.1:6653
+  - Management port mgmt0 on s1: 10.0.0.254 in the ROOT namespace, so the
+    controller's health monitor (which runs outside Mininet) can reach the backends.
+    Set SDN_MGMT_PORT=0 to skip it.
 """
 
 import os
 import shlex
+import subprocess
 import sys
 import time
 
@@ -134,6 +138,97 @@ def start_backends(net):
     return all_ok
 
 
+# Management port: an OVS internal port on s1 whose end lives in the root namespace
+MGMT_PORT = "mgmt0"
+MGMT_IP = "10.0.0.254"
+MGMT_PREFIX = 24
+MGMT_MAC = "00:00:00:00:00:fe"
+# Fixed OpenFlow port number, far above the 2-254 range the API gives backends
+MGMT_OFPORT = 1000
+
+
+def run_root(command):
+    """Run a shell command in the root namespace; returns (exit code, output)."""
+    result = subprocess.run(
+        ["/bin/sh", "-c", command], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True
+    )
+    return result.returncode, result.stdout
+
+
+def find_subnet_conflict(ip_addr_output, port=MGMT_PORT):
+    """
+    Name of another interface that already has a 10.0.0.x address, else None.
+    Input is `ip -o -4 addr show`: "2: wlan0    inet 10.0.0.37/24 brd ... ".
+    On such a machine (e.g. a 10.0.0.0/24 home LAN) we must not add the port.
+    """
+    for line in ip_addr_output.splitlines():
+        fields = line.split()
+        if len(fields) < 4 or fields[2] != "inet":
+            continue
+        name = fields[1].split("@")[0]
+        if name != port and fields[3].startswith("10.0.0."):
+            return name
+    return None
+
+
+def mgmt_add_command(bridge="s1"):
+    """ovs-vsctl command that adds the management port (no-op if it is already there)."""
+    return (
+        f"ovs-vsctl --may-exist add-port {bridge} {MGMT_PORT}"
+        f" -- set interface {MGMT_PORT} type=internal ofport_request={MGMT_OFPORT}"
+        f' mac=\\"{MGMT_MAC}\\"'
+    )
+
+
+def mgmt_address_commands():
+    """Give the port its address and bring it up; both are safe to repeat."""
+    return [
+        f"ip addr replace {MGMT_IP}/{MGMT_PREFIX} dev {MGMT_PORT}",
+        f"ip link set {MGMT_PORT} up",
+    ]
+
+
+def add_mgmt_port(bridge="s1"):
+    """Add mgmt0 (10.0.0.254) to the bridge, only if it is missing. Returns True if it is up."""
+    if os.environ.get("SDN_MGMT_PORT", "1") == "0":
+        info("*** SDN_MGMT_PORT=0: no management port, health checks cannot reach the backends\n")
+        return False
+
+    _, addresses = run_root("ip -o -4 addr show")
+    conflict = find_subnet_conflict(addresses)
+    if conflict is not None:
+        info(
+            f"*** WARNING: {conflict} already has a 10.0.0.x address; not adding {MGMT_PORT}"
+            f" ({MGMT_IP}) so this machine's own network keeps working\n"
+        )
+        return False
+
+    code, owner = run_root(f"ovs-vsctl port-to-br {MGMT_PORT}")
+    if code == 0 and owner.strip() == bridge:
+        info(f"*** {MGMT_PORT} is already on {bridge}\n")
+    elif run_root(f"ip link show {MGMT_PORT}")[0] == 0:
+        info(f"*** WARNING: an interface called {MGMT_PORT} exists but is not on {bridge}; leaving it alone\n")
+        return False
+    else:
+        code, output = run_root(mgmt_add_command(bridge))
+        if code != 0:
+            info(f"*** ERROR: could not add {MGMT_PORT} to {bridge}:\n{output}\n")
+            return False
+
+    for command in mgmt_address_commands():
+        code, output = run_root(command)
+        if code != 0:
+            info(f"*** ERROR: '{command}' failed:\n{output}\n")
+            return False
+    info(f"*** Management port {MGMT_PORT} is up: {MGMT_IP}/{MGMT_PREFIX} in the root namespace\n")
+    return True
+
+
+def remove_mgmt_port(bridge="s1"):
+    """Remove the management port (no-op if it is not there)."""
+    run_root(f"ovs-vsctl --if-exists del-port {bridge} {MGMT_PORT}")
+
+
 def run_topology(controller_ip: str = "127.0.0.1", controller_port: int = 6653):
     """Starts the Mininet network and spawns backend HTTP servers."""
     setLogLevel("info")
@@ -162,13 +257,16 @@ def run_topology(controller_ip: str = "127.0.0.1", controller_port: int = 6653):
     s1 = net.get("s1")
     s1.cmd("ovs-vsctl set bridge s1 protocols=OpenFlow13")
 
-    start_backends(net)
+    try:
+        add_mgmt_port("s1")
+        start_backends(net)
 
-    info("*** Network is ready. Use 'pingall' or 'client curl 10.0.0.100' to test.\n")
-    CLI(net)
-
-    info("*** Stopping Network\n")
-    net.stop()
+        info("*** Network is ready. Use 'pingall' or 'client curl 10.0.0.100' to test.\n")
+        CLI(net)
+    finally:
+        info("*** Stopping Network\n")
+        remove_mgmt_port("s1")
+        net.stop()
 
 
 if __name__ == "__main__":

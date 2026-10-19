@@ -71,7 +71,7 @@ class HealthMonitor:
                     else:
                         self.set_server_state(server_id, ServerHealthState.DOWN, reason=f"HTTP {response.status_code}")
                 except Exception as e:
-                    self.set_server_state(server_id, ServerHealthState.DOWN, reason=f"Connection failed: {str(e)[:40]}")
+                    self.set_server_state(server_id, ServerHealthState.DOWN, reason=f"Connection failed: {e}")
             
             hub.sleep(CONFIG.HEALTH_CHECK_INTERVAL)
 
