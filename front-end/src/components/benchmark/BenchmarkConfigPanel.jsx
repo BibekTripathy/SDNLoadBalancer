@@ -93,7 +93,7 @@ export default function BenchmarkConfigPanel({ onStart, isRunning }) {
           </h2>
         </div>
         <div className="text-xs font-mono text-slate-400 bg-slate-900 px-3 py-1 rounded-lg border border-slate-800">
-          Est. Execution Time:{' '}
+          Execution Time:{' '}
           <span className="text-amber-400 font-bold">{totalEstimatedSeconds}s</span>
         </div>
       </div>

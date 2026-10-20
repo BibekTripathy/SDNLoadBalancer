@@ -71,9 +71,11 @@ export default function TcpLab({ addLog }) {
         <div className="flex items-start gap-2 text-[11px] text-slate-400 font-mono">
           <Info className="w-3.5 h-3.5 mt-0.5 shrink-0" />
           <p>
-            <SourceBadge source="simulator" /> Python model of all three algorithms.{' '}
+            <SourceBadge source="simulator" /> Python model of all three algorithms.{' '}<br />
             <SourceBadge source="mininet" /> real Linux reno with SACK off, which behaves like New Reno; Linux has no
             Tahoe, so the three-way comparison comes from the simulator and Mininet checks it.
+            <br/>
+            scenarios:
           </p>
         </div>
 
