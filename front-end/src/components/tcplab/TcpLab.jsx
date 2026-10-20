@@ -74,8 +74,8 @@ export default function TcpLab({ addLog }) {
             <SourceBadge source="simulator" /> Python model of all three algorithms.{' '}<br />
             <SourceBadge source="mininet" /> real Linux reno with SACK off, which behaves like New Reno; Linux has no
             Tahoe, so the three-way comparison comes from the simulator and Mininet checks it.
-            <br/>
-            scenarios:
+            
+
           </p>
         </div>
 
