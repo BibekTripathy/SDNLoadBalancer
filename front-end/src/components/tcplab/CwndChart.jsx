@@ -63,7 +63,7 @@ export default function CwndChart({ series, losses, duration, height = 340 }) {
         label: `${ALGORITHM_LABELS[algorithm]} ${LOSS_MARKERS[event].label}`,
         data: points,
         showLine: false,
-        borderColor: isCross ? ALGORITHM_COLORS[algorithm] : '#0B0F19',
+        borderColor: isCross ? ALGORITHM_COLORS[algorithm] : '#eff1f5',
         borderWidth: isCross ? 3 : 1.5,
         backgroundColor: ALGORITHM_COLORS[algorithm],
         pointStyle: LOSS_MARKERS[event].pointStyle,
@@ -82,7 +82,7 @@ export default function CwndChart({ series, losses, duration, height = 340 }) {
     plugins: {
       legend: {
         position: 'top',
-        labels: { color: '#94A3B8', font: { family: 'monospace', size: 11 }, usePointStyle: true },
+        labels: { color: '#6c6f85', font: { family: 'monospace', size: 11 }, usePointStyle: true },
       },
       tooltip: {
         callbacks: {
@@ -97,12 +97,12 @@ export default function CwndChart({ series, losses, duration, height = 340 }) {
         type: 'linear',
         min: 0,
         max: duration || undefined,
-        title: { display: true, text: 'time (s)', color: '#94A3B8' },
+        title: { display: true, text: 'time (s)', color: '#6c6f85' },
       },
       y: {
         ...AXIS,
         beginAtZero: true,
-        title: { display: true, text: 'segments', color: '#94A3B8' },
+        title: { display: true, text: 'segments', color: '#6c6f85' },
       },
     },
   };

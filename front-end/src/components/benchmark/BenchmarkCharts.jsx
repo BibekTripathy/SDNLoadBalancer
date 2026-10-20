@@ -38,13 +38,13 @@ export default function BenchmarkCharts({ summary = [], runs = [] }) {
       {
         label: 'Mean Throughput (req/s)',
         data: summary.map((s) => s.mean_achieved_rps),
-        backgroundColor: '#38BDF8',
+        backgroundColor: '#04a5e5',
         borderRadius: 8,
       },
       {
         label: 'Bandwidth (Mbps)',
         data: summary.map((s) => s.mean_throughput_mbps * 10), // scaled for visualization
-        backgroundColor: '#818CF8',
+        backgroundColor: '#7287fd',
         borderRadius: 8,
       },
     ],
@@ -56,7 +56,7 @@ export default function BenchmarkCharts({ summary = [], runs = [] }) {
     plugins: {
       legend: {
         position: 'top',
-        labels: { color: '#94A3B8', font: { family: 'monospace', size: 11 } },
+        labels: { color: '#6c6f85', font: { family: 'monospace', size: 11 } },
       },
       tooltip: {
         callbacks: {
@@ -72,12 +72,12 @@ export default function BenchmarkCharts({ summary = [], runs = [] }) {
     },
     scales: {
       x: {
-        ticks: { color: '#94A3B8', font: { family: 'monospace', size: 10 } },
-        grid: { color: '#1E293B' },
+        ticks: { color: '#6c6f85', font: { family: 'monospace', size: 10 } },
+        grid: { color: '#ccd0da' },
       },
       y: {
-        ticks: { color: '#94A3B8', font: { family: 'monospace', size: 10 } },
-        grid: { color: '#1E293B' },
+        ticks: { color: '#6c6f85', font: { family: 'monospace', size: 10 } },
+        grid: { color: '#ccd0da' },
         beginAtZero: true,
       },
     },
@@ -90,13 +90,13 @@ export default function BenchmarkCharts({ summary = [], runs = [] }) {
       {
         label: 'Mean Latency (ms)',
         data: summary.map((s) => s.mean_latency_ms),
-        backgroundColor: '#34D399',
+        backgroundColor: '#40a02b',
         borderRadius: 8,
       },
       {
         label: 'p95 Tail Latency (ms)',
         data: summary.map((s) => s.p95_latency_ms),
-        backgroundColor: '#F59E0B',
+        backgroundColor: '#df8e1d',
         borderRadius: 8,
       },
     ],
@@ -109,17 +109,17 @@ export default function BenchmarkCharts({ summary = [], runs = [] }) {
       {
         label: 'Server 1',
         data: summary.map((s) => s.aggregate_distribution?.server1 || 0),
-        backgroundColor: '#38BDF8',
+        backgroundColor: '#04a5e5',
       },
       {
         label: 'Server 2',
         data: summary.map((s) => s.aggregate_distribution?.server2 || 0),
-        backgroundColor: '#818CF8',
+        backgroundColor: '#7287fd',
       },
       {
         label: 'Server 3',
         data: summary.map((s) => s.aggregate_distribution?.server3 || 0),
-        backgroundColor: '#34D399',
+        backgroundColor: '#40a02b',
       },
     ],
   };
@@ -130,19 +130,19 @@ export default function BenchmarkCharts({ summary = [], runs = [] }) {
     plugins: {
       legend: {
         position: 'top',
-        labels: { color: '#94A3B8', font: { family: 'monospace', size: 11 } },
+        labels: { color: '#6c6f85', font: { family: 'monospace', size: 11 } },
       },
     },
     scales: {
       x: {
         stacked: true,
-        ticks: { color: '#94A3B8', font: { family: 'monospace', size: 10 } },
-        grid: { color: '#1E293B' },
+        ticks: { color: '#6c6f85', font: { family: 'monospace', size: 10 } },
+        grid: { color: '#ccd0da' },
       },
       y: {
         stacked: true,
-        ticks: { color: '#94A3B8', font: { family: 'monospace', size: 10 } },
-        grid: { color: '#1E293B' },
+        ticks: { color: '#6c6f85', font: { family: 'monospace', size: 10 } },
+        grid: { color: '#ccd0da' },
         beginAtZero: true,
       },
     },
@@ -157,8 +157,8 @@ export default function BenchmarkCharts({ summary = [], runs = [] }) {
       {
         label: `${firstRunWithSeries?.algorithm || 'Active Algorithm'} RPS`,
         data: firstRunWithSeries ? firstRunWithSeries.time_series.map((t) => t.rps) : [],
-        borderColor: '#38BDF8',
-        backgroundColor: 'rgba(56, 189, 248, 0.1)',
+        borderColor: '#04a5e5',
+        backgroundColor: 'rgba(4, 165, 229, 0.1)',
         tension: 0.3,
         fill: true,
         yAxisID: 'y',
@@ -166,8 +166,8 @@ export default function BenchmarkCharts({ summary = [], runs = [] }) {
       {
         label: 'Latency (ms)',
         data: firstRunWithSeries ? firstRunWithSeries.time_series.map((t) => t.latency_ms) : [],
-        borderColor: '#F59E0B',
-        backgroundColor: 'rgba(245, 158, 11, 0.1)',
+        borderColor: '#df8e1d',
+        backgroundColor: 'rgba(223, 142, 29, 0.1)',
         tension: 0.3,
         yAxisID: 'y1',
       },
@@ -180,27 +180,27 @@ export default function BenchmarkCharts({ summary = [], runs = [] }) {
     plugins: {
       legend: {
         position: 'top',
-        labels: { color: '#94A3B8', font: { family: 'monospace', size: 11 } },
+        labels: { color: '#6c6f85', font: { family: 'monospace', size: 11 } },
       },
     },
     scales: {
       x: {
-        ticks: { color: '#94A3B8', font: { family: 'monospace', size: 10 } },
-        grid: { color: '#1E293B' },
+        ticks: { color: '#6c6f85', font: { family: 'monospace', size: 10 } },
+        grid: { color: '#ccd0da' },
       },
       y: {
         type: 'linear',
         display: true,
         position: 'left',
-        ticks: { color: '#38BDF8', font: { family: 'monospace', size: 10 } },
-        grid: { color: '#1E293B' },
+        ticks: { color: '#04a5e5', font: { family: 'monospace', size: 10 } },
+        grid: { color: '#ccd0da' },
         beginAtZero: true,
       },
       y1: {
         type: 'linear',
         display: true,
         position: 'right',
-        ticks: { color: '#F59E0B', font: { family: 'monospace', size: 10 } },
+        ticks: { color: '#df8e1d', font: { family: 'monospace', size: 10 } },
         grid: { drawOnChartArea: false },
         beginAtZero: true,
       },

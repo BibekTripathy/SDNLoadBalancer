@@ -10,26 +10,19 @@ export default function Header({
   onOpenFlowRules,
 }) {
   return (
-    <header className="sdn-header glass-panel border-b border-slate-800 px-6 py-4 flex flex-col md:flex-row items-center justify-between gap-4 sticky top-0 z-40">
+    <header className="sdn-header glass-panel border-b border-slate-800 px-6 py-4 flex flex-col md:flex-row md:flex-wrap items-center justify-between gap-x-4 gap-y-3 sticky top-0 z-40">
       {/* Brand & Logo */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 whitespace-nowrap">
         <div className="p-2.5 bg-sky-500/10 border border-sky-500/30 rounded-xl text-sky-400 shadow-lg shadow-sky-500/10">
           <Network className="w-7 h-7 animate-pulse" />
         </div>
-        <div>
-          <h1 className="text-xl font-bold bg-gradient-to-r from-sky-400 via-indigo-300 to-purple-400 bg-clip-text text-transparent">
-            SDN Dynamic Load Balancer
-          </h1>
-          <p className="text-xs text-slate-400 flex items-center gap-2">
-            <span>Ryu OpenFlow 1.3 Controller</span>
-            <span className="text-slate-600">•</span>
-            <span className="text-emerald-400 font-mono">VIP: {controllerStatus.virtual_ip}</span>
-          </p>
-        </div>
+        <h1 className="text-xl font-bold whitespace-nowrap bg-gradient-to-r from-sky-400 via-indigo-400 to-purple-400 bg-clip-text text-transparent">
+          SDN Dynamic Load Balancer
+        </h1>
       </div>
 
       {/* Controller Quick Stats */}
-      <div className="flex items-center gap-4 text-xs font-mono">
+      <div className="flex items-center gap-4 text-xs font-mono whitespace-nowrap">
         <div className="bg-slate-900/80 px-3 py-1.5 rounded-lg border border-slate-800 flex items-center gap-2">
           <Cpu className="w-4 h-4 text-indigo-400" />
           <span className="text-slate-400">Controller:</span>
@@ -50,7 +43,7 @@ export default function Header({
       </div>
 
       {/* Status Badges & Controls */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 whitespace-nowrap">
         <button
           onClick={onOpenFlowRules}
           className="px-3 py-1.5 bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/40 rounded-lg text-xs font-medium transition flex items-center gap-1.5 shadow-sm"
