@@ -141,7 +141,7 @@ export default function SimulationPanel({
 
 
       {/* 3. Live Traffic & Event Terminal Console */}
-      <div className="glass-panel p-5 rounded-2xl border border-slate-800 shadow-xl flex flex-col h-64 lg:h-auto">
+      <div className="glass-panel p-5 rounded-2xl border border-slate-800 shadow-xl flex flex-col h-80">
         <div className="flex items-center justify-between mb-2">
           <h3 className="text-sm font-bold text-slate-100 flex items-center gap-2">
             <Terminal className="w-4 h-4 text-emerald-400" />
@@ -150,7 +150,7 @@ export default function SimulationPanel({
           <span className="text-[10px] font-mono text-slate-500">Auto-Scroll</span>
         </div>
 
-        <div className="flex-1 bg-slate-950 rounded-xl p-3 border border-slate-900 font-mono text-[11px] overflow-y-auto space-y-1.5 custom-scrollbar">
+        <div className="flex-1 min-h-0 bg-slate-950 rounded-xl p-3 border border-slate-900 font-mono text-[11px] overflow-y-auto space-y-1.5 custom-scrollbar">
           {trafficLogs.length === 0 ? (
             <div className="text-slate-600 italic">No events logged yet...</div>
           ) : (

@@ -13,6 +13,7 @@ import {
   Gauge,
   Plus,
   Clock,
+  Zap,
 } from 'lucide-react';
 
 const PRESETS = [
@@ -26,6 +27,7 @@ const C = {
   teal: '#179299',
   sky: '#04a5e5',
   green: '#40a02b',
+  lightGreen: '#8fc486', // green mixed 55% into the Latte base
   yellow: '#df8e1d',
   peach: '#fe640b',
   red: '#d20f39',
@@ -43,10 +45,11 @@ const SWITCH = { w: 160, h: 108 };
 const CONTROLLER = { w: 176, h: 104 };
 const SERVER = { w: 172, h: 112 };
 
+// Active backend: green; healthy standby: light green; draining: yellow; anything else: red
 const serverAccent = (status, isChosen) => {
-  if (status === 'DOWN') return C.red;
-  if (status === 'DRAINING') return C.peach;
-  return isChosen ? C.green : C.yellow;
+  if (status === 'DRAINING') return C.yellow;
+  if (status !== 'HEALTHY') return C.red;
+  return isChosen ? C.green : C.lightGreen;
 };
 
 // Polyline -> SVG path with rounded elbows
@@ -124,6 +127,7 @@ export default function TopologyCanvas({
   trafficRate = 0,
   onTriggerRequest,
   onAddServer,
+  onOpenFlowRules,
 }) {
   const stageWrapRef = useRef(null);
   const canvasRef = useRef(null);
@@ -490,17 +494,16 @@ export default function TopologyCanvas({
               const id = srv.id || srv.server_id;
               const node = layout.servers[id];
               if (!node) return null;
-              const isDown = srv.status === 'DOWN';
-              const isDraining = srv.status === 'DRAINING';
-              const isChosen = lastSelectedServer === id && !isDown;
+              const isUp = srv.status === 'HEALTHY' || srv.status === 'DRAINING';
+              const isChosen = lastSelectedServer === id && srv.status === 'HEALTHY';
               return (
                 <Link
                   key={id}
                   pts={node.path}
-                  color={isDown ? C.overlay : isDraining ? C.peach : isChosen ? C.green : C.teal}
+                  color={serverAccent(srv.status, isChosen)}
                   width={isChosen ? 4 : 3}
-                  dashed={isDown}
-                  faded={isDown}
+                  dashed={!isUp}
+                  faded={!isUp}
                 />
               );
             })}
@@ -511,6 +514,13 @@ export default function TopologyCanvas({
             style={{ width: `${stageWidth}px`, height: `${stageHeight}px` }}
             className="absolute inset-0 pointer-events-none z-10"
           />
+
+          {/* Active algorithm, pinned to the stage corner above the client */}
+          <div className="absolute z-30 left-4 top-4 flex items-center gap-2 px-3 py-1.5 rounded-lg border border-amber-800 bg-amber-950 text-xs font-mono whitespace-nowrap">
+            <Zap className="w-4 h-4 text-amber-400" />
+            <span className="text-slate-400">Algorithm:</span>
+            <span className="text-amber-200 font-bold uppercase">{(activeAlgorithm || '').replace(/_/g, ' ')}</span>
+          </div>
 
           {/* CLIENT NODE */}
           <div
@@ -536,8 +546,10 @@ export default function TopologyCanvas({
 
           {/* SWITCH NODE */}
           <div
+            onClick={onOpenFlowRules}
+            title="View OpenFlow flow table"
             style={{ ...cardPos(layout.sw, SWITCH), '--accent': C.lavender }}
-            className="sketch-card absolute z-20 p-3 text-center flex flex-col items-center justify-center"
+            className="sketch-card absolute z-20 p-3 text-center flex flex-col items-center justify-center cursor-pointer transition-transform hover:scale-[1.03]"
           >
             <HardDrive className="w-6 h-6 mb-1" style={{ color: C.lavender }} />
             <div className="text-xs font-bold">OVS Switch (s1)</div>
@@ -555,7 +567,7 @@ export default function TopologyCanvas({
             const metrics = currentMetrics[srvId] || {};
             const isHealthy = srv.status === 'HEALTHY';
             const isDraining = srv.status === 'DRAINING';
-            const isChosen = lastSelectedServer === srvId && (isHealthy || isDraining);
+            const isChosen = lastSelectedServer === srvId && isHealthy;
             const accent = serverAccent(srv.status, isChosen);
 
             return (
@@ -563,7 +575,7 @@ export default function TopologyCanvas({
                 key={srvId}
                 onClick={() => onSelectServer(srv)}
                 style={{ ...cardPos(node, SERVER), '--accent': accent }}
-                className="sketch-card absolute z-20 px-3 pt-2 pb-1.5 text-center cursor-pointer transition-transform hover:scale-[1.03] flex flex-col"
+                className={`sketch-card ${isChosen ? 'sketch-card-active' : ''} absolute z-20 px-3 pt-2 pb-1.5 text-center cursor-pointer transition-transform hover:scale-[1.03] flex flex-col`}
               >
                 {/* Port & health indicator */}
                 <div className="flex items-center justify-between">
@@ -620,10 +632,17 @@ export default function TopologyCanvas({
             <span className="w-4 h-0 border-t-2 border-dashed inline-block" style={{ borderColor: C.mauve }} />
             <span>OpenFlow 1.3 Control Link</span>
           </div>
-          <div className="flex items-center gap-1.5">
-            <span className="w-4 h-0 border-t-2 inline-block" style={{ borderColor: C.green }} />
-            <span>Selected Backend</span>
-          </div>
+          {[
+            ['Active', C.green],
+            ['Standby', C.lightGreen],
+            ['Draining', C.yellow],
+            ['Down', C.red],
+          ].map(([label, color]) => (
+            <div key={label} className="flex items-center gap-1.5">
+              <span className="w-3 h-3 rounded-sm border-2 inline-block" style={{ borderColor: color }} />
+              <span>{label}</span>
+            </div>
+          ))}
         </div>
         <div className="text-[11px] text-slate-500">
           Click any backend server node to inspect status, configure weight, drain, or simulate failure.

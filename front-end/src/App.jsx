@@ -9,7 +9,7 @@ import ServerDetailModal from './components/ServerDetailModal';
 import AddServerModal from './components/AddServerModal';
 import BenchmarkingLab from './components/benchmark/BenchmarkingLab';
 import TcpLab from './components/tcplab/TcpLab';
-import { Network, Activity, FlaskConical, Gauge } from 'lucide-react';
+import { Network, FlaskConical, Gauge } from 'lucide-react';
 
 export default function App() {
   const {
@@ -19,7 +19,6 @@ export default function App() {
     activeAlgorithm,
     algorithms,
     servers,
-    controllerStatus,
     currentMetrics,
     trafficRate,
     setTrafficRate,
@@ -45,12 +44,9 @@ export default function App() {
     <div className="min-h-screen text-slate-100 flex flex-col font-sans">
       {/* Navigation & Header */}
       <Header
-        controllerStatus={controllerStatus}
         isLiveConnected={isLiveConnected}
         simulationMode={simulationMode}
         setSimulationMode={setSimulationMode}
-        activeAlgorithm={activeAlgorithm}
-        onOpenFlowRules={() => setShowFlowModal(true)}
       />
 
       {/* Primary Dashboard Container */}
@@ -95,11 +91,6 @@ export default function App() {
               TCP Lab
             </button>
           </div>
-
-          <div className="hidden sm:flex items-center gap-2 text-xs font-mono text-slate-400 bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-800">
-            <Activity className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
-            <span>Switch: s1 (OVS 2.17)</span>
-          </div>
         </div>
 
         {/* Tab 1: Topology & Controller View */}
@@ -115,6 +106,7 @@ export default function App() {
               trafficRate={trafficRate}
               onTriggerRequest={triggerSingleRequest}
               onAddServer={() => setShowAddServerModal(true)}
+              onOpenFlowRules={() => setShowFlowModal(true)}
             />
 
             {/* Algorithm Selector */}
