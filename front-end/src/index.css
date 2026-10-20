@@ -1,46 +1,213 @@
 @import "tailwindcss";
 
+/*
+ * Catppuccin Latte theme.
+ *
+ * The components were written against Tailwind's dark slate/sky/emerald/...
+ * scales. Rather than touching every class, the scales are remapped here:
+ * slate is inverted (950 = lightest surface, 100 = body text) and each accent
+ * scale is derived from one Latte colour (950 = faint tint, 400/500 = the
+ * colour itself, 100-300 = darker for text on light surfaces).
+ */
+@theme {
+  --ctp-base: #eff1f5;
+  --ctp-mantle: #e6e9ef;
+  --ctp-crust: #dce0e8;
+  --ctp-text: #4c4f69;
+
+  --color-slate-50: #4c4f69;
+  --color-slate-100: #4c4f69;
+  --color-slate-200: #4c4f69;
+  --color-slate-300: #5c5f77;
+  --color-slate-400: #6c6f85;
+  --color-slate-500: #7c7f93;
+  --color-slate-600: #9ca0b0;
+  --color-slate-700: #bcc0cc;
+  --color-slate-800: #ccd0da;
+  --color-slate-900: #e6e9ef;
+  --color-slate-950: #dce0e8;
+
+  --color-sky-50: color-mix(in oklab, #04a5e5 55%, #4c4f69);
+  --color-sky-100: color-mix(in oklab, #04a5e5 60%, #4c4f69);
+  --color-sky-200: color-mix(in oklab, #04a5e5 70%, #4c4f69);
+  --color-sky-300: color-mix(in oklab, #04a5e5 82%, #4c4f69);
+  --color-sky-400: #04a5e5;
+  --color-sky-500: #04a5e5;
+  --color-sky-600: color-mix(in oklab, #04a5e5 88%, #4c4f69);
+  --color-sky-700: color-mix(in oklab, #04a5e5 75%, #4c4f69);
+  --color-sky-800: color-mix(in oklab, #04a5e5 38%, #eff1f5);
+  --color-sky-900: color-mix(in oklab, #04a5e5 20%, #eff1f5);
+  --color-sky-950: color-mix(in oklab, #04a5e5 10%, #eff1f5);
+
+  --color-emerald-50: color-mix(in oklab, #40a02b 55%, #4c4f69);
+  --color-emerald-100: color-mix(in oklab, #40a02b 60%, #4c4f69);
+  --color-emerald-200: color-mix(in oklab, #40a02b 70%, #4c4f69);
+  --color-emerald-300: color-mix(in oklab, #40a02b 82%, #4c4f69);
+  --color-emerald-400: #40a02b;
+  --color-emerald-500: #40a02b;
+  --color-emerald-600: color-mix(in oklab, #40a02b 88%, #4c4f69);
+  --color-emerald-700: color-mix(in oklab, #40a02b 75%, #4c4f69);
+  --color-emerald-800: color-mix(in oklab, #40a02b 38%, #eff1f5);
+  --color-emerald-900: color-mix(in oklab, #40a02b 20%, #eff1f5);
+  --color-emerald-950: color-mix(in oklab, #40a02b 10%, #eff1f5);
+
+  --color-amber-50: color-mix(in oklab, #df8e1d 55%, #4c4f69);
+  --color-amber-100: color-mix(in oklab, #df8e1d 60%, #4c4f69);
+  --color-amber-200: color-mix(in oklab, #df8e1d 70%, #4c4f69);
+  --color-amber-300: color-mix(in oklab, #df8e1d 80%, #4c4f69);
+  --color-amber-400: #df8e1d;
+  --color-amber-500: #df8e1d;
+  --color-amber-600: color-mix(in oklab, #df8e1d 88%, #4c4f69);
+  --color-amber-700: color-mix(in oklab, #df8e1d 75%, #4c4f69);
+  --color-amber-800: color-mix(in oklab, #df8e1d 38%, #eff1f5);
+  --color-amber-900: color-mix(in oklab, #df8e1d 20%, #eff1f5);
+  --color-amber-950: color-mix(in oklab, #df8e1d 10%, #eff1f5);
+
+  --color-red-50: color-mix(in oklab, #d20f39 60%, #4c4f69);
+  --color-red-100: color-mix(in oklab, #d20f39 65%, #4c4f69);
+  --color-red-200: color-mix(in oklab, #d20f39 75%, #4c4f69);
+  --color-red-300: color-mix(in oklab, #d20f39 88%, #4c4f69);
+  --color-red-400: #d20f39;
+  --color-red-500: #d20f39;
+  --color-red-600: color-mix(in oklab, #d20f39 90%, #4c4f69);
+  --color-red-700: color-mix(in oklab, #d20f39 78%, #4c4f69);
+  --color-red-800: color-mix(in oklab, #d20f39 38%, #eff1f5);
+  --color-red-900: color-mix(in oklab, #d20f39 20%, #eff1f5);
+  --color-red-950: color-mix(in oklab, #d20f39 10%, #eff1f5);
+
+  --color-rose-50: color-mix(in oklab, #e64553 60%, #4c4f69);
+  --color-rose-100: color-mix(in oklab, #e64553 65%, #4c4f69);
+  --color-rose-200: color-mix(in oklab, #e64553 75%, #4c4f69);
+  --color-rose-300: color-mix(in oklab, #e64553 88%, #4c4f69);
+  --color-rose-400: #e64553;
+  --color-rose-500: #e64553;
+  --color-rose-600: color-mix(in oklab, #e64553 90%, #4c4f69);
+  --color-rose-700: color-mix(in oklab, #e64553 78%, #4c4f69);
+  --color-rose-800: color-mix(in oklab, #e64553 38%, #eff1f5);
+  --color-rose-900: color-mix(in oklab, #e64553 20%, #eff1f5);
+  --color-rose-950: color-mix(in oklab, #e64553 10%, #eff1f5);
+
+  --color-indigo-50: color-mix(in oklab, #7287fd 55%, #4c4f69);
+  --color-indigo-100: color-mix(in oklab, #7287fd 60%, #4c4f69);
+  --color-indigo-200: color-mix(in oklab, #7287fd 70%, #4c4f69);
+  --color-indigo-300: color-mix(in oklab, #7287fd 82%, #4c4f69);
+  --color-indigo-400: #7287fd;
+  --color-indigo-500: #7287fd;
+  --color-indigo-600: color-mix(in oklab, #7287fd 88%, #4c4f69);
+  --color-indigo-700: color-mix(in oklab, #7287fd 75%, #4c4f69);
+  --color-indigo-800: color-mix(in oklab, #7287fd 38%, #eff1f5);
+  --color-indigo-900: color-mix(in oklab, #7287fd 20%, #eff1f5);
+  --color-indigo-950: color-mix(in oklab, #7287fd 10%, #eff1f5);
+
+  --color-purple-50: color-mix(in oklab, #8839ef 60%, #4c4f69);
+  --color-purple-100: color-mix(in oklab, #8839ef 65%, #4c4f69);
+  --color-purple-200: color-mix(in oklab, #8839ef 75%, #4c4f69);
+  --color-purple-300: color-mix(in oklab, #8839ef 88%, #4c4f69);
+  --color-purple-400: #8839ef;
+  --color-purple-500: #8839ef;
+  --color-purple-600: color-mix(in oklab, #8839ef 90%, #4c4f69);
+  --color-purple-700: color-mix(in oklab, #8839ef 78%, #4c4f69);
+  --color-purple-800: color-mix(in oklab, #8839ef 38%, #eff1f5);
+  --color-purple-900: color-mix(in oklab, #8839ef 20%, #eff1f5);
+  --color-purple-950: color-mix(in oklab, #8839ef 10%, #eff1f5);
+
+  --color-violet-300: color-mix(in oklab, #ea76cb 80%, #4c4f69);
+  --color-violet-400: #ea76cb;
+  --color-violet-500: #ea76cb;
+  --color-violet-800: color-mix(in oklab, #ea76cb 38%, #eff1f5);
+  --color-violet-900: color-mix(in oklab, #ea76cb 20%, #eff1f5);
+  --color-violet-950: color-mix(in oklab, #ea76cb 10%, #eff1f5);
+
+  --color-teal-400: #179299;
+  --color-teal-500: #179299;
+}
+
 @layer base {
   body {
-    background-color: #0B0F19;
-    color: #F8FAFC;
+    background-color: var(--ctp-mantle);
+    color: var(--ctp-text);
     font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     min-height: 100vh;
     overflow-x: hidden;
-    background-image: 
-      radial-gradient(at 15% 15%, rgba(14, 165, 233, 0.08) 0px, transparent 50%),
-      radial-gradient(at 85% 85%, rgba(129, 140, 248, 0.08) 0px, transparent 50%);
-    background-attachment: fixed;
+  }
+
+  ::selection {
+    background: color-mix(in oklab, #7287fd 30%, transparent);
   }
 }
 
 .glass-panel {
-  background: rgba(15, 23, 42, 0.75);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  background: var(--ctp-base);
+  box-shadow: 0 1px 2px rgba(76, 79, 105, 0.06), 0 4px 16px rgba(76, 79, 105, 0.06);
 }
 
 .sdn-header {
-  background: rgba(11, 15, 25, 0.85);
-  backdrop-filter: blur(20px);
+  background: color-mix(in oklab, var(--ctp-base) 92%, transparent);
+  backdrop-filter: blur(12px);
 }
 
-/* Custom sleek scrollbar for logs and modals */
+/*
+ * Sketch cards for the topology: hatched fill and a doubled, slightly offset
+ * border in the node's accent colour, after the chalkboard reference.
+ */
+@layer components {
+  .sketch-card {
+    --accent: #7287fd;
+    border: 2px solid var(--accent);
+    border-radius: 12px;
+    background-color: color-mix(in oklab, var(--accent) 9%, var(--ctp-base));
+    background-image: repeating-linear-gradient(
+      -45deg,
+      color-mix(in oklab, var(--accent) 16%, transparent) 0 1.5px,
+      transparent 1.5px 7px
+    );
+    box-shadow: 3px 3px 0 color-mix(in oklab, var(--accent) 22%, transparent);
+    color: var(--ctp-text);
+  }
+
+  .sketch-card::after {
+    content: '';
+    position: absolute;
+    inset: -5px -3px -3px -5px;
+    border: 1.5px solid color-mix(in oklab, var(--accent) 45%, transparent);
+    border-radius: 14px 10px 13px 11px;
+    pointer-events: none;
+  }
+
+  /* Active backend: solid, heavier border and a stronger fill */
+  .sketch-card.sketch-card-active {
+    border-width: 3px;
+    background-color: color-mix(in oklab, var(--accent) 24%, var(--ctp-base));
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--accent) 28%, transparent);
+  }
+
+  .sketch-card.sketch-card-active::after {
+    border-color: var(--accent);
+  }
+
+  .sketch-card .sketch-chip {
+    border: 1.5px solid color-mix(in oklab, var(--accent) 55%, transparent);
+    background: color-mix(in oklab, var(--accent) 10%, var(--ctp-base));
+    color: color-mix(in oklab, var(--accent) 70%, var(--ctp-text));
+  }
+}
+
+/* Custom scrollbar for logs and modals */
 .custom-scrollbar::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-track {
-  background: rgba(15, 23, 42, 0.6);
+  background: var(--ctp-mantle);
   border-radius: 4px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(51, 65, 85, 0.8);
+  background: #bcc0cc;
   border-radius: 4px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: rgba(100, 116, 139, 1);
+  background: #9ca0b0;
 }

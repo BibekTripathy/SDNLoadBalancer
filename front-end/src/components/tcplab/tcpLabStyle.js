@@ -1,7 +1,7 @@
 // Colours and labels for the TCP Lab page. One colour per algorithm, the same
 // everywhere (the PNG plots use the light-background steps of the same hues).
-// These are the dark-surface steps, validated as a set against the page
-// background #0B0F19 (lightness band, colour-blind separation, 3:1 contrast).
+// These are the dark-surface steps, validated against the old #0B0F19 page;
+// not re-validated for the Catppuccin Latte base #eff1f5 (newreno/linux_reno sit near 3:1).
 export const ALGORITHM_COLORS = {
   tahoe: '#3987e5',
   reno: '#d95926',
@@ -26,8 +26,8 @@ export const SOURCE_STYLES = {
 };
 
 export const AXIS = {
-  ticks: { color: '#94A3B8', font: { family: 'monospace', size: 10 } },
-  grid: { color: '#1E293B' },
+  ticks: { color: '#6c6f85', font: { family: 'monospace', size: 10 } },
+  grid: { color: '#ccd0da' },
 };
 
 // "3.46 (median 3.46, 3.15-3.72, n=3)" - the same format as report.md.

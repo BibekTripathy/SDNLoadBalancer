@@ -17,7 +17,7 @@ const METRICS = [
 
 function Header({ algorithm, source }) {
   return (
-    <th className="text-left font-normal py-2 px-2 align-bottom">
+    <th className="text-left font-normal py-2 px-5 align-bottom">
       <div className="flex items-center gap-1.5 text-slate-300">
         <span className="w-2.5 h-2.5 rounded-full" style={{ background: ALGORITHM_COLORS[algorithm] }} />
         {ALGORITHM_LABELS[algorithm]}
@@ -64,7 +64,7 @@ export default function ResultsTable({ scenarioEntry, variantLabel }) {
         <table className="w-full text-xs font-mono">
           <thead className="text-slate-500">
             <tr>
-              <th className="text-left font-normal py-2 px-2 align-bottom">metric</th>
+              <th className="text-left font-normal py-2 px-5 align-bottom">metric</th>
               {algorithms.map((algorithm) => (
                 <Header key={algorithm} algorithm={algorithm} source="simulator" />
               ))}
@@ -74,13 +74,13 @@ export default function ResultsTable({ scenarioEntry, variantLabel }) {
           <tbody className="text-slate-200">
             {rows.map(([key, label, digits]) => (
               <tr key={key} className="border-t border-slate-800">
-                <td className="py-1.5 px-2 text-slate-400">{label}</td>
+                <td className="py-1.5 px-5 text-slate-400">{label}</td>
                 {algorithms.map((algorithm) => (
-                  <td key={algorithm} className="px-2">
+                  <td key={algorithm} className="px-5">
                     {formatStats(item.simulator[algorithm][key], digits)}
                   </td>
                 ))}
-                {hasLinux && <td className="px-2">{formatStats(item.mininet.linux_reno[key], digits)}</td>}
+                {hasLinux && <td className="px-5">{formatStats(item.mininet.linux_reno[key], digits)}</td>}
               </tr>
             ))}
           </tbody>

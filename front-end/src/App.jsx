@@ -3,14 +3,13 @@ import { useSDNData } from './hooks/useSDNData';
 import Header from './components/Header';
 import TopologyCanvas from './components/TopologyCanvas';
 import AlgorithmSelector from './components/AlgorithmSelector';
-import MetricsDashboard from './components/MetricsDashboard';
 import SimulationPanel from './components/SimulationPanel';
 import FlowTableModal from './components/FlowTableModal';
 import ServerDetailModal from './components/ServerDetailModal';
 import AddServerModal from './components/AddServerModal';
 import BenchmarkingLab from './components/benchmark/BenchmarkingLab';
 import TcpLab from './components/tcplab/TcpLab';
-import { Network, BarChart2, ShieldCheck, Activity, FlaskConical, Gauge } from 'lucide-react';
+import { Network, FlaskConical, Gauge } from 'lucide-react';
 
 export default function App() {
   const {
@@ -20,9 +19,7 @@ export default function App() {
     activeAlgorithm,
     algorithms,
     servers,
-    controllerStatus,
     currentMetrics,
-    metricsHistory,
     trafficRate,
     setTrafficRate,
     trafficLogs,
@@ -38,21 +35,18 @@ export default function App() {
     addLog,
   } = useSDNData();
 
-  const [activeTab, setActiveTab] = useState('topology'); // 'topology' | 'analytics' | 'benchmark' | 'tcplab'
+  const [activeTab, setActiveTab] = useState('topology'); // 'topology' | 'benchmark' | 'tcplab'
   const [showFlowModal, setShowFlowModal] = useState(false);
   const [showAddServerModal, setShowAddServerModal] = useState(false);
   const [selectedServerModal, setSelectedServerModal] = useState(null);
 
   return (
-    <div className="min-h-screen bg-[#0B0F19] text-slate-100 flex flex-col font-sans selection:bg-sky-500 selection:text-slate-950">
+    <div className="min-h-screen text-slate-100 flex flex-col font-sans">
       {/* Navigation & Header */}
       <Header
-        controllerStatus={controllerStatus}
         isLiveConnected={isLiveConnected}
         simulationMode={simulationMode}
         setSimulationMode={setSimulationMode}
-        activeAlgorithm={activeAlgorithm}
-        onOpenFlowRules={() => setShowFlowModal(true)}
       />
 
       {/* Primary Dashboard Container */}
@@ -72,17 +66,6 @@ export default function App() {
               SDN Topology & Controller
             </button>
 
-            <button
-              onClick={() => setActiveTab('analytics')}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 ${
-                activeTab === 'analytics'
-                  ? 'bg-sky-500 text-slate-950 shadow-lg shadow-sky-500/20'
-                  : 'bg-slate-900 text-slate-400 hover:text-slate-200 border border-slate-800'
-              }`}
-            >
-              <BarChart2 className="w-4 h-4" />
-              Live Telemetry Analytics
-            </button>
 
             <button
               onClick={() => setActiveTab('benchmark')}
@@ -108,11 +91,6 @@ export default function App() {
               TCP Lab
             </button>
           </div>
-
-          <div className="hidden sm:flex items-center gap-2 text-xs font-mono text-slate-400 bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-800">
-            <Activity className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
-            <span>Switch: s1 (OVS 2.17)</span>
-          </div>
         </div>
 
         {/* Tab 1: Topology & Controller View */}
@@ -128,6 +106,7 @@ export default function App() {
               trafficRate={trafficRate}
               onTriggerRequest={triggerSingleRequest}
               onAddServer={() => setShowAddServerModal(true)}
+              onOpenFlowRules={() => setShowFlowModal(true)}
             />
 
             {/* Algorithm Selector */}
@@ -149,31 +128,16 @@ export default function App() {
           </div>
         )}
 
-        {/* Tab 2: Telemetry Analytics View */}
-        {activeTab === 'analytics' && (
-          <div className="space-y-6">
-            <MetricsDashboard
-              metricsHistory={metricsHistory}
-              currentMetrics={currentMetrics}
-              servers={servers}
-              controllerStatus={controllerStatus}
-            />
-          </div>
-        )}
 
-        {/* Tab 3: Benchmarking Laboratory View */}
+        {/* Tab 2: Benchmarking Laboratory View */}
         {activeTab === 'benchmark' && (
           <BenchmarkingLab addLog={addLog} />
         )}
 
-        {/* Tab 4: TCP Congestion Control Lab */}
+        {/* Tab 3: TCP Congestion Control Lab */}
         {activeTab === 'tcplab' && <TcpLab addLog={addLog} />}
       </main>
 
-      {/* Footer */}
-      <footer className="border-t border-slate-900 bg-slate-950/80 py-4 px-6 text-center text-xs text-slate-500 font-mono">
-        🚀 SDN Load Balancer Dashboard v0.12 • Ryu OpenFlow 1.3 Controller • Mininet Network Topology Simulation
-      </footer>
 
       {/* Flow Table Modal */}
       {showFlowModal && (

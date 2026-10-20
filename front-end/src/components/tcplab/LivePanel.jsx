@@ -281,26 +281,26 @@ export default function LivePanel({ scenario, variant, addLog }) {
         <table className="w-full text-xs font-mono">
           <thead className="text-slate-500">
             <tr>
-              <th className="text-left font-normal py-1">algorithm</th>
-              <th className="text-right font-normal">time (s)</th>
-              <th className="text-right font-normal">cwnd</th>
-              <th className="text-right font-normal">ssthresh</th>
-              <th className="text-right font-normal">state</th>
+              <th className="text-left font-normal px-4 py-1">algorithm</th>
+              <th className="text-right font-normal px-4">time (s)</th>
+              <th className="text-right font-normal px-4">cwnd</th>
+              <th className="text-right font-normal px-4">ssthresh</th>
+              <th className="text-right font-normal px-4">state</th>
             </tr>
           </thead>
           <tbody className="text-slate-200">
             {latest.map((sample) => (
               <tr key={sample.algorithm} className="border-t border-slate-800">
-                <td className="py-1 flex items-center gap-1.5">
+                <td className="py-1 px-4 flex items-center gap-1.5">
                   <span className="w-2.5 h-2.5 rounded-full" style={{ background: ALGORITHM_COLORS[sample.algorithm] }} />
                   {ALGORITHM_LABELS[sample.algorithm]}
                 </td>
-                <td className="text-right">{sample.time.toFixed(2)}</td>
-                <td className="text-right">{sample.cwnd.toFixed(1)}</td>
-                <td className="text-right">
+                <td className="text-right px-4">{sample.time.toFixed(2)}</td>
+                <td className="text-right px-4">{sample.cwnd.toFixed(1)}</td>
+                <td className="text-right px-4">
                   {sample.ssthresh === null || sample.ssthresh >= 1e5 ? '-' : sample.ssthresh.toFixed(1)}
                 </td>
-                <td className="text-right">{sample.state || '-'}</td>
+                <td className="text-right px-4">{sample.state || '-'}</td>
               </tr>
             ))}
           </tbody>
@@ -316,23 +316,23 @@ export default function LivePanel({ scenario, variant, addLog }) {
           <table className="w-full text-xs font-mono">
             <thead className="text-slate-500">
               <tr>
-                <th className="text-left font-normal py-1">algorithm</th>
-                <th className="text-right font-normal">goodput (Mbit/s)</th>
-                <th className="text-right font-normal">retransmissions</th>
-                <th className="text-right font-normal">of which spurious</th>
-                <th className="text-right font-normal">timeouts</th>
-                <th className="text-right font-normal">avg recovery (s)</th>
+                <th className="text-left font-normal px-4 py-1">algorithm</th>
+                <th className="text-right font-normal px-4">goodput (Mbit/s)</th>
+                <th className="text-right font-normal px-4">retransmissions</th>
+                <th className="text-right font-normal px-4">of which spurious</th>
+                <th className="text-right font-normal px-4">timeouts</th>
+                <th className="text-right font-normal px-4">avg recovery (s)</th>
               </tr>
             </thead>
             <tbody className="text-slate-200">
               {results.map((row) => (
                 <tr key={row.algorithm} className="border-t border-slate-800">
-                  <td className="py-1">{ALGORITHM_LABELS[row.algorithm]}</td>
-                  <td className="text-right">{row.goodput_mbps.toFixed(2)}</td>
-                  <td className="text-right">{row.retransmissions}</td>
-                  <td className="text-right">{row.spurious_retransmissions}</td>
-                  <td className="text-right">{row.timeouts}</td>
-                  <td className="text-right">{row.avg_recovery_s === null ? '-' : row.avg_recovery_s.toFixed(3)}</td>
+                  <td className="py-1 px-4">{ALGORITHM_LABELS[row.algorithm]}</td>
+                  <td className="text-right px-4">{row.goodput_mbps.toFixed(2)}</td>
+                  <td className="text-right px-4">{row.retransmissions}</td>
+                  <td className="text-right px-4">{row.spurious_retransmissions}</td>
+                  <td className="text-right px-4">{row.timeouts}</td>
+                  <td className="text-right px-4">{row.avg_recovery_s === null ? '-' : row.avg_recovery_s.toFixed(3)}</td>
                 </tr>
               ))}
             </tbody>

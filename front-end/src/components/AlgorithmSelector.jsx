@@ -29,7 +29,7 @@ export default function AlgorithmSelector({
         </div>
 
         <div className="text-xs font-mono bg-amber-500/10 text-amber-400 border border-amber-500/30 px-3 py-1 rounded-lg">
-          Active: {activeAlgorithm.toUpperCase().replace('_', ' ')}
+          Active: {activeAlgorithm.toUpperCase().replace(/_/g, ' ')}
         </div>
       </div>
 
@@ -70,8 +70,7 @@ export default function AlgorithmSelector({
                 <p className="text-xs text-slate-400 leading-relaxed">{algo.description}</p>
               </div>
 
-              <div className="mt-3 pt-2 border-t border-slate-800/80 flex justify-between items-center text-[10px] font-mono">
-                <span className="text-slate-500">ID: {algo.id}</span>
+              <div className="mt-3 pt-2 border-t border-slate-800/80 flex justify-end items-center text-[10px] font-mono">
                 <span className={isActive ? 'text-amber-400 font-bold' : 'text-slate-400'}>
                   {isActive ? 'ACTIVE IN SDN FLOWS' : 'Click to Activate'}
                 </span>
