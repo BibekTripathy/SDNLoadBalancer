@@ -72,16 +72,16 @@ export default function AnalysisPanel({ analysis, scenarioId }) {
         <table className="text-xs font-mono">
           <thead className="text-slate-500">
             <tr>
-              <th className="text-left font-normal pr-6 py-1">algorithm</th>
-              <th className="text-right font-normal pr-6">points</th>
+              <th className="text-left font-normal pr-10 py-1">algorithm</th>
+              <th className="text-right font-normal pr-10">points</th>
               <th className="text-right font-normal">scenarios won</th>
             </tr>
           </thead>
           <tbody className="text-slate-200">
             {ranking.map(([algorithm, points]) => (
               <tr key={algorithm} className="border-t border-slate-800">
-                <td className="pr-6 py-1">{ALGORITHM_LABELS[algorithm]}</td>
-                <td className="text-right pr-6">{points}</td>
+                <td className="pr-10 py-1">{ALGORITHM_LABELS[algorithm]}</td>
+                <td className="text-right pr-10">{points}</td>
                 <td className="text-right">{recommendation.scenarios_won[algorithm] || 0}</td>
               </tr>
             ))}
@@ -103,29 +103,29 @@ export default function AnalysisPanel({ analysis, scenarioId }) {
             <table className="w-full text-xs font-mono">
               <thead className="text-slate-500">
                 <tr>
-                  <th className="text-left font-normal py-1 pr-3">variant</th>
-                  <th className="text-left font-normal pr-3">
+                  <th className="text-left font-normal py-2 pr-10">variant</th>
+                  <th className="text-left font-normal pr-10">
                     goodput: Linux reno <SourceBadge source="mininet" />
                   </th>
-                  <th className="text-right font-normal pr-3">
+                  <th className="text-right font-normal pr-10">
                     New Reno, Linux-like start <SourceBadge source="simulator" />
                   </th>
-                  <th className="text-right font-normal pr-3">
+                  <th className="text-right font-normal pr-10">
                     Reno, Linux-like start <SourceBadge source="simulator" />
                   </th>
-                  <th className="text-left font-normal pr-3">closer by goodput</th>
+                  <th className="text-left font-normal pr-10">closer by goodput</th>
                   <th className="text-left font-normal">Linux timeouts</th>
                 </tr>
               </thead>
               <tbody className="text-slate-200">
                 {checks.map(({ id, label, check }) => (
                   <tr key={`${id}-${label}`} className="border-t border-slate-800">
-                    <td className="py-1 pr-3">
+                    <td className="py-2 pr-10">
                       {id} {label}
                     </td>
                     <td className="pr-3">{formatStats(check.mininet_goodput)}</td>
-                    <td className="text-right pr-3">{number(check.newreno_linux_start_goodput)}</td>
-                    <td className="text-right pr-3">{number(check.reno_linux_start_goodput)}</td>
+                    <td className="text-right pr-10">{number(check.newreno_linux_start_goodput)}</td>
+                    <td className="text-right pr-10">{number(check.reno_linux_start_goodput)}</td>
                     <td className="pr-3">{ALGORITHM_LABELS[check.closer_by_goodput]}</td>
                     <td>
                       {number(check.mininet_timeouts, 1)} ({check.timeouts_vs_simulator} simulated)

@@ -78,41 +78,47 @@ export default function TcpLab({ addLog }) {
         </div>
 
         {/* Scenario and variant: shared by every panel below */}
-        <div className="flex flex-wrap items-center gap-3 text-xs font-mono text-slate-300">
-          <select
-            value={scenarioId}
-            onChange={(e) => {
-              setScenarioId(e.target.value);
-              setVariantLabel('');
-            }}
-            className="bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5"
-          >
-            {scenarios.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.id} {item.name}
-              </option>
-            ))}
-          </select>
-          {scenario && (
+        <div className="flex flex-wrap items-end gap-4 text-xs font-mono text-slate-300">
+          <label className="flex flex-col gap-1">
+            <span className="text-[11px] font-sans font-semibold text-slate-400">Scenario</span>
             <select
-              value={variant ? variant.label : ''}
-              onChange={(e) => setVariantLabel(e.target.value)}
+              value={scenarioId}
+              onChange={(e) => {
+                setScenarioId(e.target.value);
+                setVariantLabel('');
+              }}
               className="bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5"
             >
-              {scenario.variants.map((item) => (
-                <option key={item.label} value={item.label}>
-                  {item.label}
+              {scenarios.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.id} {item.name}
                 </option>
               ))}
             </select>
-          )}
-          {variant && (
-            <span className="text-slate-500">
-              {variant.bandwidth_mbps} Mbit/s · one-way delay {variant.delay_ms} ms · queue {variant.queue_size} ·
-              loss {(variant.loss_rate * 100).toFixed(1)} % · {variant.num_flows} flow(s) · {variant.duration} s
-            </span>
+          </label>
+          {scenario && (
+            <label className="flex flex-col gap-1">
+              <span className="text-[11px] font-sans font-semibold text-slate-400">Variant</span>
+              <select
+                value={variant ? variant.label : ''}
+                onChange={(e) => setVariantLabel(e.target.value)}
+                className="bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5"
+              >
+                {scenario.variants.map((item) => (
+                  <option key={item.label} value={item.label}>
+                    {item.label}
+                  </option>
+                ))}
+              </select>
+            </label>
           )}
         </div>
+        {variant && (
+          <p className="text-xs font-mono text-slate-500">
+            {variant.bandwidth_mbps} Mbit/s · one-way delay {variant.delay_ms} ms · queue {variant.queue_size} ·
+            loss {(variant.loss_rate * 100).toFixed(1)} % · {variant.num_flows} flow(s) · {variant.duration} s
+          </p>
+        )}
         {scenario && <p className="text-xs text-slate-400">{scenario.description}</p>}
         {error && <p className="text-xs text-rose-300 font-mono">{error}</p>}
       </div>
